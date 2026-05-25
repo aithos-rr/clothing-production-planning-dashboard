@@ -428,7 +428,7 @@ TASK-012
 - `get_phases_for_product(df, "DoesNotExist")` raises `UnknownProductError` whose message contains the product name.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -460,7 +460,7 @@ TASK-014, TASK-016
 - The pre-built sample order designed to exceed capacity has `utilization_rate > 1.0` for at least one phase.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -486,7 +486,7 @@ TASK-017
 - On sample data, `summary["most_critical_phase"]` is one of the actual phase names from `product_matrix`.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -515,7 +515,7 @@ TASK-014, TASK-016
 - `allocate_orders` does not mutate `orders_df` (`orig.equals(orig_copy)` after call).
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
