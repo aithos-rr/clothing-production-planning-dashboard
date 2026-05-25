@@ -797,7 +797,7 @@ Updated `app.py`:
 - A fresh session lands on Overview without errors.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -822,7 +822,7 @@ TASK-024, TASK-028
 - Status card color: green (live data), orange (mock), gray (none).
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -851,7 +851,7 @@ TASK-010, TASK-015, TASK-028
 - A malformed file (e.g. a renamed `.txt`) produces a user-friendly error, no stack trace in the UI.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -877,7 +877,7 @@ TASK-017, TASK-022, TASK-024, TASK-025, TASK-026, TASK-028
 - All status colors match thresholds from `constants`.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -901,7 +901,7 @@ TASK-018, TASK-024, TASK-025, TASK-028
 - The "most critical phase" card matches `summary["most_critical_phase"]` from bottleneck engine.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -926,7 +926,7 @@ TASK-023, TASK-027, TASK-028
 - Page does not error when timeline is empty.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -954,7 +954,7 @@ TASK-019, TASK-031, TASK-028
 - "Reset" button restores `ScenarioInputs()` defaults.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -979,7 +979,7 @@ TASK-024, TASK-028
 - Disclaimer is present and prominent.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
