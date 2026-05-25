@@ -694,7 +694,7 @@ TASK-006, TASK-009
 - No business logic in this file — purely presentational.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -720,7 +720,7 @@ TASK-003
 - Figure color decisions use `STATUS_COLORS` from constants, no hex literals inline.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -745,7 +745,7 @@ TASK-006, TASK-009
 - A `REJECT` recommendation renders in red, `ACCEPT` in green, `AT_RISK`/`REALLOCATE`/`SPLIT`/`POSTPONE` in orange.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -770,7 +770,7 @@ TASK-023, TASK-025
 - No errors when `timeline_df` is empty (renders empty figure with an annotation `"No orders to display"`).
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
