@@ -30,7 +30,7 @@ from src.ui.pages import (
 )
 
 st.set_page_config(
-    page_title="Marvi — Operational Planning",
+    page_title="Clothing Production Planning Dashboard",
     layout="wide",
 )
 

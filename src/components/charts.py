@@ -48,14 +48,22 @@ def _base_layout(fig: go.Figure, title: str | None = None) -> go.Figure:
 
 
 def phase_utilization_bar(capacity_results_df: pd.DataFrame) -> go.Figure:
-    """Horizontal bar chart of mean utilization per phase, colored by status."""
+    """Horizontal bar chart of utilization per phase, colored by status.
+
+    Uses the **worst case** (max across orders) rather than the mean, since a
+    single overloaded order makes the phase operationally critical even if the
+    average looks healthy.
+    """
     if capacity_results_df.empty:
         return _empty_figure("No capacity data yet")
 
+    finite_util = capacity_results_df["utilization_rate"].replace(
+        [float("inf"), float("-inf")], float("nan")
+    )
     per_phase = (
-        capacity_results_df.groupby("phase_name")["utilization_rate"]
-        .mean()
-        .replace([float("inf"), float("-inf")], float("nan"))
+        capacity_results_df.assign(_u=finite_util)
+        .groupby("phase_name")["_u"]
+        .max()
         .dropna()
         .sort_values(ascending=True)
     )
@@ -76,7 +84,7 @@ def phase_utilization_bar(capacity_results_df: pd.DataFrame) -> go.Figure:
         x=CRITICAL_UTILIZATION_THRESHOLD,
         line=dict(color="#9CA3AF", width=1, dash="dash"),
     )
-    fig = _base_layout(fig, title="Phase utilization (mean across orders)")
+    fig = _base_layout(fig, title="Phase utilization (worst case across orders)")
     fig.update_xaxes(tickformat=".0%", range=[0, max(1.2, per_phase.max() * 1.1)])
     return fig
 

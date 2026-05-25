@@ -44,7 +44,7 @@ def _ingest(raw_sheets: dict[str, pd.DataFrame], used_mock_marker: str | None = 
             if df is None or df.empty:
                 st.write("_(empty)_")
             else:
-                st.dataframe(df.head(10), use_container_width=True)
+                st.dataframe(df.head(10), width="stretch")
 
 
 def render() -> None:

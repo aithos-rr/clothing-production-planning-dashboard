@@ -72,7 +72,7 @@ def _compute_overview_kpis() -> list[dict]:
 
 
 def render() -> None:
-    st.title("Marvi — Operational Planning")
+    st.title("Clothing Production Planning Dashboard")
     st.write(
         "Lightweight operational planning platform for fashion manufacturing. "
         "Replaces fragmented Excel workflows with a centralized dashboard that "

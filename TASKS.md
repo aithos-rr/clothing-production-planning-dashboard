@@ -158,7 +158,7 @@ TASK-001
 
 ### Expected Output
 `app.py` at project root:
-- `st.set_page_config` with title `"Marvi — Operational Planning"` and wide layout.
+- `st.set_page_config` with title `"Clothing Production Planning Dashboard"` and wide layout.
 - Sidebar radio with options: `Overview`, `Upload Data`, `Capacity Dashboard`, `Phase Saturation`, `Timeline`, `Scenario Testing`, `Future AI Layer`.
 - Each selection renders `st.title(page_name)` and `st.info("Coming soon")`.
 
@@ -811,7 +811,7 @@ TASK-024, TASK-028
 
 ### Expected Output
 `src/ui/pages/overview.py` with `render()` that displays:
-- `st.title("Marvi — Operational Planning")`.
+- `st.title("Clothing Production Planning Dashboard")`.
 - Two-paragraph project description sourced from PRD §1.1.
 - A dataset-status card: `"Live data: sample_planning.xlsx"` or `"Demo mode — no data uploaded"` or `"No data — upload a file"`.
 - KPI row (uses `kpi_row` from TASK-024): total orders, total products, overall utilization, number of critical alerts. KPIs show `"—"` when data not yet loaded.

@@ -66,7 +66,7 @@ def render() -> None:
 
     # --- Chart ---
     st.subheader("Phase utilization")
-    st.plotly_chart(phase_utilization_bar(cap), use_container_width=True)
+    st.plotly_chart(phase_utilization_bar(cap), width="stretch")
 
     # --- Alerts ---
     st.subheader("Operational stress")

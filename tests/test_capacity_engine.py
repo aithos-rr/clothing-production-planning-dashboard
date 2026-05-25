@@ -105,7 +105,7 @@ def test_zero_available_minutes_returns_inf_no_exception() -> None:
         _phase_capacity(available_per_day=0.0), planning_days=1,
     )
     assert math.isinf(cap.iloc[0]["utilization_rate"])
-    assert cap.iloc[0]["is_overloaded"] is True
+    assert bool(cap.iloc[0]["is_overloaded"]) is True
 
 
 def test_overloaded_flag_uses_threshold_from_constants() -> None:
@@ -118,7 +118,7 @@ def test_overloaded_flag_uses_threshold_from_constants() -> None:
         _orders(qty=100), _product_matrix(avg=1.0), _labs(),
         _phase_capacity(available_per_day=available), planning_days=1,
     )
-    assert cap.iloc[0]["is_overloaded"] is True
+    assert bool(cap.iloc[0]["is_overloaded"]) is True
 
     # Now just below threshold
     util_target = SAFE_UTILIZATION_THRESHOLD - 0.01
@@ -127,7 +127,7 @@ def test_overloaded_flag_uses_threshold_from_constants() -> None:
         _orders(qty=100), _product_matrix(avg=1.0), _labs(),
         _phase_capacity(available_per_day=available), planning_days=1,
     )
-    assert cap.iloc[0]["is_overloaded"] is False
+    assert bool(cap.iloc[0]["is_overloaded"]) is False
 
 
 def test_unknown_product_emits_row_marked_overloaded() -> None:
@@ -138,4 +138,4 @@ def test_unknown_product_emits_row_marked_overloaded() -> None:
     )
     assert len(cap) == 1
     assert math.isinf(cap.iloc[0]["utilization_rate"])
-    assert cap.iloc[0]["is_overloaded"] is True
+    assert bool(cap.iloc[0]["is_overloaded"]) is True

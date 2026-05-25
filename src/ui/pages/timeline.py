@@ -28,7 +28,7 @@ def render() -> None:
 
     orders_scn, pc_scn = apply_scenario(orders_df, pc_df, scenario)
     cap = compute_capacity_results(orders_scn, pm_df, labs_df, pc_scn, planning_days=planning_days)
-    timeline = build_timeline(orders_scn, cap, pc_scn)
+    timeline = build_timeline(orders_scn, cap, pc_scn, planning_days=planning_days)
 
     if timeline.empty:
         st.info("No orders to display in the timeline yet.")
@@ -46,7 +46,7 @@ def render() -> None:
     filtered = timeline[
         timeline["assigned_lab"].isin(sel_labs) & timeline["status"].isin(sel_status)
     ]
-    st.plotly_chart(render_timeline_chart(filtered), use_container_width=True)
+    st.plotly_chart(render_timeline_chart(filtered), width="stretch")
 
     # Legend
     legend_html = (

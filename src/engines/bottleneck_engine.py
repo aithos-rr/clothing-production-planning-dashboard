@@ -37,15 +37,16 @@ def identify_bottlenecks(
     )
     df["is_bottleneck"] = df["bottleneck_rank"] == 1
 
-    # Global summary: phase with the highest *mean* utilization across orders.
-    # Replace inf with a large finite value so groupby.mean() doesn't degenerate.
+    # Global summary: phase with the highest *worst-case* utilization across
+    # orders. Mean would dilute a single critical order; the worst case is what
+    # actually constrains operations and drives recommendations.
     util = df["utilization_rate"].replace([math.inf, -math.inf], float("nan"))
     finite_df = df.assign(_finite_util=util).dropna(subset=["_finite_util"])
     if finite_df.empty:
         most_phase = df["phase_name"].iloc[0]
         most_util = float(df["utilization_rate"].iloc[0])
     else:
-        per_phase = finite_df.groupby("phase_name")["_finite_util"].mean()
+        per_phase = finite_df.groupby("phase_name")["_finite_util"].max()
         most_phase = str(per_phase.idxmax())
         most_util = float(per_phase.max())
 

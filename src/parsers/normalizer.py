@@ -166,12 +166,13 @@ def normalize_product_matrix(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, list[V
 
     warnings.extend(check_required_columns(df, ["product_type", "phase_name"], "product_matrix"))
 
-    # Ensure numeric columns
+    # Ensure numeric columns (force float64 so empty-mask assignments don't
+    # trip pandas' LossySetitem guard on object/NA-dtyped columns).
     for col in ("min_time_minutes", "max_time_minutes", "avg_time_minutes", "setup_time_minutes"):
         if col in df.columns:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
+            df[col] = pd.to_numeric(df[col], errors="coerce").astype("float64")
         else:
-            df[col] = pd.NA
+            df[col] = pd.Series([float("nan")] * len(df), dtype="float64", index=df.index)
 
     # Compute avg from min/max if missing (PRD §7.2 fallback)
     has_min = df["min_time_minutes"].notna()
@@ -179,15 +180,18 @@ def normalize_product_matrix(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, list[V
     has_avg = df["avg_time_minutes"].notna()
 
     mask_min_max = ~has_avg & has_min & has_max
-    df.loc[mask_min_max, "avg_time_minutes"] = (
-        df.loc[mask_min_max, "min_time_minutes"] + df.loc[mask_min_max, "max_time_minutes"]
-    ) / 2.0
+    if mask_min_max.any():
+        df.loc[mask_min_max, "avg_time_minutes"] = (
+            df.loc[mask_min_max, "min_time_minutes"] + df.loc[mask_min_max, "max_time_minutes"]
+        ) / 2.0
 
     mask_only_min = ~has_avg & has_min & ~has_max
-    df.loc[mask_only_min, "avg_time_minutes"] = df.loc[mask_only_min, "min_time_minutes"]
+    if mask_only_min.any():
+        df.loc[mask_only_min, "avg_time_minutes"] = df.loc[mask_only_min, "min_time_minutes"]
 
     mask_only_max = ~has_avg & ~has_min & has_max
-    df.loc[mask_only_max, "avg_time_minutes"] = df.loc[mask_only_max, "max_time_minutes"]
+    if mask_only_max.any():
+        df.loc[mask_only_max, "avg_time_minutes"] = df.loc[mask_only_max, "max_time_minutes"]
 
     # Rows still missing avg → high warning
     still_missing = df["avg_time_minutes"].isna()

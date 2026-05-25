@@ -53,28 +53,68 @@ def render() -> None:
     ])
 
     st.subheader("Utilization by phase")
-    st.plotly_chart(phase_utilization_bar(cap), use_container_width=True)
+    st.plotly_chart(phase_utilization_bar(cap), width="stretch")
 
-    # Per-phase table
+    # Per-phase table.
+    # Status is driven by the WORST case (max utilization) — a single overloaded
+    # order is enough to make a phase operationally critical, even if the mean
+    # across orders looks healthy.
     finite = cap.copy()
     finite["_util"] = finite["utilization_rate"].replace([math.inf, -math.inf], math.nan)
     per_phase = (
         finite.groupby("phase_name")
         .agg(
             avg_utilization=("_util", "mean"),
+            max_utilization=("_util", "max"),
             bottleneck=("is_bottleneck", "any"),
             capacity_gap_minutes=("capacity_gap_minutes", "sum"),
         )
         .reset_index()
     )
+    per_phase["status"] = per_phase["max_utilization"].apply(utilization_status)
     per_phase["bottleneck"] = per_phase["bottleneck"].map({True: "✓", False: ""})
-    per_phase["status"] = per_phase["avg_utilization"].apply(utilization_status)
     per_phase["avg_utilization"] = per_phase["avg_utilization"].apply(
+        lambda v: fmt_pct(v) if v is not None and math.isfinite(v) else "∞"
+    )
+    per_phase["max_utilization"] = per_phase["max_utilization"].apply(
         lambda v: fmt_pct(v) if v is not None and math.isfinite(v) else "∞"
     )
     per_phase["capacity_gap"] = per_phase["capacity_gap_minutes"].apply(fmt_minutes)
     st.subheader("Detail per phase")
     st.dataframe(
-        per_phase[["phase_name", "avg_utilization", "bottleneck", "capacity_gap", "status"]],
-        use_container_width=True,
+        per_phase[
+            ["phase_name", "avg_utilization", "max_utilization", "bottleneck", "capacity_gap", "status"]
+        ],
+        width="stretch",
+    )
+
+    # Per-order detail — surfaces which order is dragging a phase into the red.
+    st.subheader("Detail per order")
+    per_order = (
+        finite.groupby(["order_id", "product_type", "phase_name"])
+        .agg(
+            utilization=("_util", "max"),
+            required_minutes=("required_minutes", "sum"),
+            available_minutes=("available_minutes", "max"),
+            capacity_gap_minutes=("capacity_gap_minutes", "sum"),
+        )
+        .reset_index()
+    )
+    per_order["status"] = per_order["utilization"].apply(utilization_status)
+    per_order_display = per_order.copy()
+    per_order_display["utilization"] = per_order_display["utilization"].apply(
+        lambda v: fmt_pct(v) if v is not None and math.isfinite(v) else "∞"
+    )
+    per_order_display["required_minutes"] = per_order_display["required_minutes"].apply(fmt_minutes)
+    per_order_display["available_minutes"] = per_order_display["available_minutes"].apply(fmt_minutes)
+    per_order_display["capacity_gap"] = per_order_display["capacity_gap_minutes"].apply(fmt_minutes)
+    st.dataframe(
+        per_order_display[
+            [
+                "order_id", "product_type", "phase_name",
+                "utilization", "required_minutes", "available_minutes",
+                "capacity_gap", "status",
+            ]
+        ].sort_values(["status", "order_id"], ascending=[True, True]),
+        width="stretch",
     )
