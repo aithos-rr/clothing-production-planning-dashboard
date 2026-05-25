@@ -1,58 +1,131 @@
-# Clothing Production Planning Dashboard
+# Marvi — Operational Planning
 
-Lightweight operational planning platform for fashion manufacturing. Replaces fragmented Excel workflows with a centralized Streamlit dashboard for capacity calculation, bottleneck analysis, operational stress monitoring, and rule-based recommendations.
+## What it is
 
-> **Status:** planning phase — implementation tracked in [`TASKS.md`](./TASKS.md).
+A lightweight operational planning platform that transforms the company's
+current Excel-based production planning workflow into a centralized,
+interactive, and scalable decision-support dashboard. It supports Product
+Managers and planning teams in evaluating real production capacity, monitoring
+workload saturation, identifying bottlenecks, and avoiding operational
+overload. The MVP is rule-based and deterministic; future AI extensions
+(predictive delays, optimization, forecasting) are scoped on a dedicated page
+and not implemented here.
 
-## Documents
-
-- [`MASTER_PRD_v2_EXECUTION.md`](./MASTER_PRD_v2_EXECUTION.md) — single source of truth (vision, scope, data schema, module contracts).
-- [`TASKS.md`](./TASKS.md) — 40-task iterative implementation plan across 9 phases.
-- [`CLOUD_CODE_MASTER_PROMPT.md`](./CLOUD_CODE_MASTER_PROMPT.md) — execution rules for AI coding agents.
-
-## Tech Stack
-
-- **Frontend:** Streamlit
-- **Backend:** Python (Pandas, NumPy)
-- **Visualization:** Plotly
-- **Excel I/O:** Openpyxl
-- **Config:** PyYAML
-
-## Run Locally (once implemented)
+## Run locally
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
 pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Use the **Demo mode** toggle on the Upload page to explore the dashboard without real data.
+(Optional, one-shot) regenerate the bundled sample dataset:
 
-## Project Structure (target)
-
-```
-/
-├── app.py                       # Streamlit entry point
-├── requirements.txt
-├── config/
-│   └── defaults.yaml            # Thresholds & operational defaults
-├── data/
-│   ├── sample/                  # Committed sample dataset
-│   └── uploaded/                # User uploads (gitignored)
-├── src/
-│   ├── parsers/                 # Excel parser + normalizer
-│   ├── engines/                 # Capacity, bottleneck, stress, recommendation, timeline, scenario
-│   ├── components/              # Reusable Streamlit widgets
-│   ├── ui/pages/                # Streamlit page modules
-│   └── utils/                   # Config, constants, validation, formatting
-└── tests/
+```bash
+python scripts/build_sample_data.py
 ```
 
-## Out of Scope (MVP)
+## Try it without data
 
-No authentication, no database, no cloud deployment, no ML pipelines, no ERP integration. These belong to the Future AI Expansion Layer described in the PRD.
+Open the **Upload Data** page and toggle **"Use demo data instead of
+uploading"**. The dashboard loads the bundled sample workbook
+(`data/sample/sample_planning.xlsx`) — five orders × two product types ×
+four phases × two labs — so every downstream page renders without any
+real data being uploaded.
 
-## Contributing / Agent Workflow
+## Project structure
 
-AI coding agents should follow the loop protocol at the bottom of `TASKS.md`: pick the first `TODO` task whose dependencies are `DONE`, implement, verify acceptance criteria, mark `DONE`, commit, stop.
+```text
+/project
+    app.py
+    requirements.txt
+    README.md
+    MASTER_PRD_v2_EXECUTION.md
+    TASKS.md
+
+    /data
+        /sample
+        /uploaded
+
+    /config
+        defaults.yaml
+
+    /src
+        /parsers
+            excel_parser.py
+            normalizer.py
+
+        /engines
+            product_matrix_engine.py
+            capacity_engine.py
+            bottleneck_engine.py
+            lab_allocation_engine.py
+            stress_engine.py
+            recommendation_engine.py
+            timeline_engine.py
+            scenario_engine.py
+
+        /components
+            kpi_cards.py
+            charts.py
+            alerts.py
+            timeline.py
+
+        /ui
+            /pages
+                overview.py
+                upload.py
+                capacity_dashboard.py
+                phase_saturation.py
+                timeline.py
+                scenario_testing.py
+                future_ai.py
+
+        /utils
+            config.py
+            constants.py
+            validation.py
+            formatting.py
+
+    /assets
+        /mockups
+
+    /scripts
+        build_sample_data.py
+
+    /tests
+        test_capacity_engine.py
+        test_recommendation_engine.py
+        test_normalizer.py
+```
+
+## Configuration
+
+All operational defaults (working hours, efficiency, utilization thresholds,
+parallel-order limits, etc.) live in [`config/defaults.yaml`](./config/defaults.yaml)
+and are loaded once via `src/utils/config.py`. Tune them without code changes;
+status thresholds shared with the UI are mirrored in `src/utils/constants.py`.
+
+## Out of scope
+
+The following are intentionally **not** part of the MVP:
+
+- user authentication
+- cloud deployment
+- database persistence
+- ERP integration
+- real-time synchronization
+- advanced ML pipelines
+- optimization algorithms
+- automatic scheduling optimization
+- production-grade access control
+- multi-tenant SaaS architecture
+- real legal compliance engine
+
+## Future work
+
+The **Future AI Layer** page inside the running dashboard documents the
+planned expansion path: predictive delay risk, anomaly detection,
+forecasting, optimization engine, and a digital twin simulation environment.
+These features require historical delivery data not currently available in
+the Excel workflow being digitalized; they are deliberately deferred to a
+later phase.

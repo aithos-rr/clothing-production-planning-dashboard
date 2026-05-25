@@ -1009,7 +1009,7 @@ TASK-017
 - Tests do not import Streamlit.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -1036,7 +1036,7 @@ TASK-022
 - Each test uses fixtures with hand-crafted `capacity_results_df` and `stress_events_df`.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -1061,7 +1061,7 @@ TASK-015
 - `pytest tests/test_normalizer.py -v` passes with ≥ 6 tests green.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -1086,7 +1086,7 @@ TASK-029, TASK-030, TASK-031, TASK-032, TASK-033, TASK-034, TASK-035
 - The "Calculation Errors" category (available capacity = 0, division by zero, etc.) is covered by capacity engine's `inf`-instead-of-exception behavior (verified in TASK-036).
 
 ### Status
-TODO
+DONE
 
 ---
 
@@ -1114,7 +1114,7 @@ TASK-002, TASK-006, TASK-007, TASK-030
 - No links to nonexistent files or pages.
 
 ### Status
-TODO
+DONE
 
 ---
 
