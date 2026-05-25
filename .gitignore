@@ -56,3 +56,8 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Local Claude/agent configuration
+.claude/
+.agents/
+skills-lock.json
