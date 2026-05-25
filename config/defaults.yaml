@@ -1,0 +1,11 @@
+default_lab_id: "Default Lab"
+working_hours_per_day: 8
+working_days_per_week: 5
+default_efficiency: 0.75
+machine_uptime: 0.90
+safe_utilization_threshold: 0.85
+critical_utilization_threshold: 1.00
+phase_stress_threshold: 0.90
+max_parallel_orders_per_lab: 2
+max_weekly_hours: 48
+overtime_allowed: false
