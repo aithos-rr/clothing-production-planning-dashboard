@@ -549,7 +549,7 @@ TASK-013, TASK-014
 - Original DataFrames remain unchanged after call.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -576,7 +576,7 @@ In `src/engines/stress_engine.py`:
 - Every event row has all 7 schema columns populated (no NaN).
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -605,7 +605,7 @@ In `src/engines/stress_engine.py`:
 - Order with `deadline = today` and any positive required time produces a `"deadline_infeasible"` event.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
