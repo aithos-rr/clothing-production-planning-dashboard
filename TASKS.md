@@ -223,7 +223,7 @@ TASK-001
 - `severity` for missing-required-column is `"high"`; for nulls in optional column is `"medium"`.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -249,7 +249,7 @@ TASK-003
 - `utilization_status(0.5) == "safe"`, `utilization_status(0.9) == "at_risk"`, `utilization_status(1.2) == "critical"`.
 
 ### Status
-TODO
+DONE
 
 ---
 
@@ -273,7 +273,7 @@ TASK-002
 - Module contains no calls to engine modules.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -299,7 +299,7 @@ In `src/parsers/normalizer.py`:
 - `progress_percentage` is always a float in `[0.0, 1.0]` (decision: fraction scale; document with a one-line comment in the module).
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -326,7 +326,7 @@ In `src/parsers/normalizer.py`:
 - `phase_order` is strictly increasing within each `product_type` group.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -353,7 +353,7 @@ In `src/parsers/normalizer.py`:
 - DataFrame with only `lab_id` populated produces a result where every other column is filled with the documented config default.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -378,7 +378,7 @@ In `src/parsers/normalizer.py`:
 - A row with `lab_id="GHOST"` produces one warning naming the missing lab.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -402,7 +402,7 @@ In `src/parsers/normalizer.py`:
 - `normalize_all({}, use_mock_fallback=False)` returns four empty DataFrames and high-severity warnings.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
