@@ -638,7 +638,7 @@ TASK-018, TASK-018B, TASK-021
 - `reasons` list is never empty; `suggested_actions` is never empty.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
@@ -668,7 +668,7 @@ TASK-017
 - An order with `end_date == deadline - 5 days` has `status == "on_track"`.
 
 ### Status
-TODO
+CODE_READY
 
 ---
 
