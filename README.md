@@ -11,26 +11,62 @@ overload. The MVP is rule-based and deterministic; future AI extensions
 (predictive delays, optimization, forecasting) are scoped on a dedicated page
 and not implemented here.
 
-## Run locally
+## Setup & run locally
+
+Requires **Python ≥ 3.10**.
 
 ```bash
+# 1. install dependencies
 pip install -r requirements.txt
+
+# 2. (optional) run the test suite
+pytest tests/ -v
+
+# 3. launch the dashboard (opens at http://localhost:8501)
 streamlit run app.py
 ```
 
-(Optional, one-shot) regenerate the bundled sample dataset:
+(Optional, one-shot) regenerate the small bundled demo dataset:
 
 ```bash
 python scripts/build_sample_data.py
 ```
 
-## Try it without data
+## Datasets bundled with the project
 
-Open the **Upload Data** page and toggle **"Use demo data instead of
-uploading"**. The dashboard loads the bundled sample workbook
-(`data/sample/sample_planning.xlsx`) — five orders × two product types ×
-four phases × two labs — so every downstream page renders without any
-real data being uploaded.
+Two `.xlsx` workbooks ship under `data/sample/`. Pick the one that matches
+what you want to demo:
+
+| File | Size | Scope | When to use |
+|---|---|---|---|
+| `data/sample/sample_planning.xlsx` | 5 orders · 2 products · 2 labs | Tiny synthetic demo | Sanity-check the UI without any setup. Loaded automatically by the **"Use demo data"** toggle. |
+| `data/sample/clothing_production_planning_database_cleaned.xlsx` | 60 orders · 16 products · 10 labs · 373 phase-capacity rows | Realistic test database | Stress-test the dashboard with production-like volumes (bottlenecks, REJECT/SPLIT recommendations, late deadlines). |
+
+## How to load data (3 ways)
+
+**Option A — Quick demo (zero steps).**
+On the running app, go to **Upload Data** and toggle
+**"Use demo data instead of uploading"**. The dashboard loads
+`sample_planning.xlsx` automatically.
+
+**Option B — Realistic dataset (recommended for demos & presentations).**
+1. Start the app: `streamlit run app.py`.
+2. Open the **Upload Data** page.
+3. Leave the demo toggle **off**.
+4. Click **"Browse files"** and select
+   `data/sample/clothing_production_planning_database_cleaned.xlsx`
+   from this repo.
+5. Navigate to **Capacity Dashboard** / **Phase Saturation** /
+   **Timeline** to see the full pipeline running on realistic data.
+
+**Option C — Your own Excel workbook.**
+The parser accepts any `.xlsx` with the four canonical sheets
+(`orders`, `product_matrix`, `labs` *or* `labs_factories`, `phase_capacity`).
+Italian column names (`cliente`, `quantità`, `scadenza`, …) are auto-mapped
+to the canonical English schema. Missing sheets fall back to the bundled
+demo. Lab ids referenced by `phase_capacity` or `orders` but absent from
+the labs sheet are auto-created with the defaults in `config/defaults.yaml`
+— no warnings emitted.
 
 ## Project structure
 
@@ -39,8 +75,12 @@ real data being uploaded.
     app.py
     requirements.txt
     README.md
-    MASTER_PRD_v2_EXECUTION.md
-    TASKS.md
+
+    /docs
+        MASTER_PRD_v2_EXECUTION.md
+        TASKS.md
+        PRESENTATION_AUDIT.md
+        CLOUD_CODE_MASTER_PROMPT.md
 
     /data
         /sample
@@ -104,6 +144,13 @@ All operational defaults (working hours, efficiency, utilization thresholds,
 parallel-order limits, etc.) live in [`config/defaults.yaml`](./config/defaults.yaml)
 and are loaded once via `src/utils/config.py`. Tune them without code changes;
 status thresholds shared with the UI are mirrored in `src/utils/constants.py`.
+
+## Deployment (Railway)
+
+`railway.json` configures a NIXPACKS build and launches Streamlit on the
+container's `$PORT`. Push the repo to Railway, point a service at it, and it
+deploys with no further setup. Headless mode + usage-stats opt-out are
+already wired into the start command.
 
 ## Out of scope
 

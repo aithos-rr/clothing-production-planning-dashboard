@@ -105,3 +105,71 @@ def test_normalize_all_returns_empty_when_no_fallback() -> None:
     result = normalize_all({}, use_mock_fallback=False)
     assert result["orders"].empty
     assert any(w.severity == "high" for w in result["warnings"])
+
+
+def test_sheet_alias_labs_factories_resolves_to_labs() -> None:
+    """Workbooks using `labs_factories` should still populate the labs table."""
+    raw = {
+        "orders": pd.DataFrame([{
+            "order_id": "O1", "product_type": "P", "quantity": 5,
+            "deadline": date(2030, 1, 1), "assigned_lab": "L3",
+        }]),
+        "product_matrix": pd.DataFrame([{
+            "product_type": "P", "phase_name": "ph",
+            "avg_time_minutes": 5.0, "phase_order": 1,
+        }]),
+        "labs_factories": pd.DataFrame([{
+            "lab_id": "L3", "lab_name": "Centro",
+            "working_hours_per_day": 8, "default_efficiency": 0.8,
+            "machine_uptime": 0.9, "overtime_allowed": "No",
+        }]),
+        "phase_capacity": pd.DataFrame([{
+            "lab_id": "L3", "phase_name": "ph",
+            "workers_total": 3, "workers_assigned": 3,
+        }]),
+    }
+    result = normalize_all(raw, use_mock_fallback=False)
+    assert "L3" in result["labs"]["lab_id"].tolist()
+    assert result["labs"].iloc[0]["overtime_allowed"] is False or result["labs"].iloc[0]["overtime_allowed"] == False  # noqa: E712
+
+
+def test_unknown_lab_referenced_by_phase_capacity_does_not_warn() -> None:
+    """Lab ids in phase_capacity but missing from labs are added silently."""
+    raw = {
+        "orders": pd.DataFrame([{
+            "order_id": "O1", "product_type": "P", "quantity": 5,
+            "deadline": date(2030, 1, 1), "assigned_lab": "L7",
+        }]),
+        "product_matrix": pd.DataFrame([{
+            "product_type": "P", "phase_name": "ph",
+            "avg_time_minutes": 5.0, "phase_order": 1,
+        }]),
+        "labs": pd.DataFrame([{
+            "lab_id": "L1", "lab_name": "Nord",
+            "working_hours_per_day": 8, "default_efficiency": 0.8,
+            "machine_uptime": 0.9, "overtime_allowed": False,
+        }]),
+        "phase_capacity": pd.DataFrame([
+            {"lab_id": "L1", "phase_name": "ph", "workers_total": 2, "workers_assigned": 2},
+            {"lab_id": "L7", "phase_name": "ph", "workers_total": 2, "workers_assigned": 2},
+            {"lab_id": "L7", "phase_name": "ph2", "workers_total": 1, "workers_assigned": 1},
+        ]),
+    }
+    result = normalize_all(raw, use_mock_fallback=False)
+    assert "L7" in result["labs"]["lab_id"].tolist()
+    unknown_lab_warnings = [w for w in result["warnings"] if "unknown lab_id" in w.message]
+    assert unknown_lab_warnings == []
+
+
+def test_overtime_allowed_parses_yes_no_strings() -> None:
+    """Defensive: bool('No') == True, so Yes/No strings must be parsed explicitly."""
+    raw = pd.DataFrame([
+        {"lab_id": "L1", "overtime_allowed": "Yes"},
+        {"lab_id": "L2", "overtime_allowed": "No"},
+        {"lab_id": "L3", "overtime_allowed": True},
+        {"lab_id": "L4", "overtime_allowed": False},
+    ])
+    df, _ = normalize_labs(raw)
+    assert df.set_index("lab_id")["overtime_allowed"].to_dict() == {
+        "L1": True, "L2": False, "L3": True, "L4": False,
+    }

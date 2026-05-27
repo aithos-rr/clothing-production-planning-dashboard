@@ -27,8 +27,23 @@ _REC_COLORS = {
 }
 
 
+def _render_event(ev) -> None:
+    """Render a single event as a colored Streamlit message."""
+    message = f"**{ev['event_type']}** · {ev['order_id']} — {ev['message']}"
+    if ev["severity"] == SEVERITY_HIGH:
+        st.error(message)
+    elif ev["severity"] == SEVERITY_MEDIUM:
+        st.warning(message)
+    else:
+        st.info(message)
+
+
 def render_alerts(stress_events_df: pd.DataFrame, max_items: int = 10) -> None:
-    """Render up to `max_items` stress events as colored Streamlit messages."""
+    """Render stress events: first `max_items` inline, the rest in an expander.
+
+    Inline gives an at-a-glance summary; the expander lets the user drill into
+    every event without leaving the page.
+    """
     if stress_events_df is None or stress_events_df.empty:
         st.success("No operational stress detected")
         return
@@ -38,22 +53,16 @@ def render_alerts(stress_events_df: pd.DataFrame, max_items: int = 10) -> None:
         _ord=stress_events_df["severity"].map(severity_order).fillna(99)
     ).sort_values("_ord")
 
-    shown = 0
-    for _, ev in sorted_events.iterrows():
-        if shown >= max_items:
-            break
-        message = f"**{ev['event_type']}** · {ev['order_id']} — {ev['message']}"
-        if ev["severity"] == SEVERITY_HIGH:
-            st.error(message)
-        elif ev["severity"] == SEVERITY_MEDIUM:
-            st.warning(message)
-        else:
-            st.info(message)
-        shown += 1
+    head = sorted_events.head(max_items)
+    tail = sorted_events.iloc[max_items:]
 
-    remaining = len(sorted_events) - shown
-    if remaining > 0:
-        st.caption(f"+ {remaining} more event(s) not shown")
+    for _, ev in head.iterrows():
+        _render_event(ev)
+
+    if not tail.empty:
+        with st.expander(f"Show all {len(sorted_events)} events ({len(tail)} more)"):
+            for _, ev in tail.iterrows():
+                _render_event(ev)
 
 
 def render_recommendation_panel(

@@ -31,6 +31,8 @@ _COLUMN_ALIASES: dict[str, str] = {
     "ordine": "order_id",
     "laboratorio": "assigned_lab",
     "catena": "assigned_chain",
+    "linea": "assigned_chain",
+    "assigned_line": "assigned_chain",
     "priorita": "priority",
     "priorità": "priority",
     "fase": "phase_name",
@@ -44,6 +46,23 @@ _COLUMN_ALIASES: dict[str, str] = {
     "macchine": "machines_total",
     "efficienza": "efficiency",
     "uptime_macchine": "uptime",
+}
+
+# Aliases for sheet names — workbooks built around the richer
+# "production planning database" schema use longer names (labs_factories,
+# line_capacity, etc.). We map them to the canonical four-sheet model so the
+# rest of the pipeline keeps working.
+_SHEET_ALIASES: dict[str, str] = {
+    "labs": "labs",
+    "labs_factories": "labs",
+    "factories": "labs",
+    "laboratori": "labs",
+    "orders": "orders",
+    "ordini": "orders",
+    "product_matrix": "product_matrix",
+    "products": "product_matrix",
+    "phase_capacity": "phase_capacity",
+    "capacita_fasi": "phase_capacity",
 }
 
 SAMPLE_PATH = Path("data/sample/sample_planning.xlsx")
@@ -83,6 +102,28 @@ def _to_date_series(s: pd.Series) -> pd.Series:
     """Coerce a series to `datetime.date`; bad parses become pd.NaT then None."""
     parsed = pd.to_datetime(s, errors="coerce")
     return parsed.dt.date.where(parsed.notna(), None)
+
+
+_TRUE_TOKENS = {"true", "yes", "y", "si", "sì", "1", "vero"}
+_FALSE_TOKENS = {"false", "no", "n", "0", "falso"}
+
+
+def _coerce_bool(value) -> bool:
+    """Parse Yes/No/True/False strings → bool. Defensive against `bool('No') == True`."""
+    if value is None:
+        return False
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        if isinstance(value, float) and pd.isna(value):
+            return False
+        return bool(value)
+    text = str(value).strip().lower()
+    if text in _TRUE_TOKENS:
+        return True
+    if text in _FALSE_TOKENS:
+        return False
+    return False
 
 
 # ---------- TASK-011 ----------
@@ -225,14 +266,27 @@ def normalize_product_matrix(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, list[V
 
 
 # ---------- TASK-013 ----------
-def normalize_labs(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, list[ValidationWarning]]:
-    """Normalize the `labs` sheet into PRD §7.3 schema."""
+def normalize_labs(
+    raw_df: pd.DataFrame,
+    extra_lab_ids: list[str] | None = None,
+) -> tuple[pd.DataFrame, list[ValidationWarning]]:
+    """Normalize the `labs` sheet into PRD §7.3 schema.
+
+    `extra_lab_ids`: lab ids referenced by other sheets (e.g. phase_capacity,
+    orders) that should appear in the labs table even if missing from the
+    workbook's labs sheet. They are added with config defaults so downstream
+    engines don't emit "unknown lab_id" warnings for every phase row.
+    """
     warnings: list[ValidationWarning] = []
     df = _canonicalize_columns(raw_df).copy() if raw_df is not None else pd.DataFrame()
+    extra_lab_ids = list(extra_lab_ids or [])
 
-    if df.empty:
+    if df.empty and not extra_lab_ids:
         warnings.append(ValidationWarning("labs", "Labs sheet is empty.", SEVERITY_HIGH))
         return pd.DataFrame(columns=LABS_COLS), warnings
+
+    if df.empty:
+        df = pd.DataFrame({"lab_id": []})
 
     warnings.extend(check_required_columns(df, ["lab_id"], "labs"))
 
@@ -265,7 +319,27 @@ def normalize_labs(raw_df: pd.DataFrame) -> tuple[pd.DataFrame, list[ValidationW
     df["working_days_per_week"] = pd.to_numeric(df["working_days_per_week"], errors="coerce").fillna(
         defaults["working_days_per_week"]
     ).astype(int)
-    df["overtime_allowed"] = df["overtime_allowed"].astype(bool)
+    df["overtime_allowed"] = df["overtime_allowed"].apply(_coerce_bool)
+
+    # Add referenced-but-missing lab ids with default config (no warning).
+    if extra_lab_ids:
+        known = set(df["lab_id"].astype(str).tolist())
+        missing = [lid for lid in extra_lab_ids if str(lid) not in known and pd.notna(lid)]
+        if missing:
+            extra_rows = pd.DataFrame([
+                {
+                    "lab_id": lid,
+                    "lab_name": lid,
+                    "working_hours_per_day": defaults["working_hours_per_day"],
+                    "working_days_per_week": defaults["working_days_per_week"],
+                    "default_efficiency": defaults["default_efficiency"],
+                    "machine_uptime": defaults["machine_uptime"],
+                    "max_weekly_hours": defaults["max_weekly_hours"],
+                    "overtime_allowed": defaults["overtime_allowed"],
+                }
+                for lid in missing
+            ])
+            df = pd.concat([df, extra_rows], ignore_index=True)
 
     return df.reindex(columns=LABS_COLS), warnings
 
@@ -369,6 +443,37 @@ def _load_sample_sheets() -> dict[str, pd.DataFrame]:
         return {}
 
 
+def _resolve_sheet_aliases(raw: dict[str, pd.DataFrame]) -> dict[str, pd.DataFrame]:
+    """Apply `_SHEET_ALIASES` and return a dict keyed by canonical sheet names.
+
+    Original keys are also preserved so unknown sheets pass through untouched.
+    """
+    resolved: dict[str, pd.DataFrame] = {}
+    for k, v in raw.items():
+        canonical = _SHEET_ALIASES.get(str(k).strip().lower(), k)
+        if canonical not in resolved or _empty_sheet(resolved[canonical]):
+            resolved[canonical] = v
+    return resolved
+
+
+def _collect_referenced_lab_ids(
+    phase_capacity_raw: pd.DataFrame | None,
+    orders_raw: pd.DataFrame | None,
+) -> list[str]:
+    """Return unique lab_id values referenced by phase_capacity / orders."""
+    ids: set[str] = set()
+    for df in (phase_capacity_raw, orders_raw):
+        if df is None or df.empty:
+            continue
+        cdf = _canonicalize_columns(df)
+        if "lab_id" in cdf.columns:
+            ids.update(str(x) for x in cdf["lab_id"].dropna().unique())
+        if "assigned_lab" in cdf.columns:
+            ids.update(str(x) for x in cdf["assigned_lab"].dropna().unique())
+    # Drop sentinel values that don't represent real labs
+    return sorted(x for x in ids if x and x.lower() not in {"nan", "none", "default lab"})
+
+
 def normalize_all(
     raw: dict[str, pd.DataFrame],
     use_mock_fallback: bool = True,
@@ -378,7 +483,7 @@ def normalize_all(
     Returns dict with keys: orders, product_matrix, labs, phase_capacity,
     warnings (list), used_mock (dict[str, bool]).
     """
-    raw = raw or {}
+    raw = _resolve_sheet_aliases(raw or {})
     sample = _load_sample_sheets() if use_mock_fallback else {}
     used_mock: dict[str, bool] = {k: False for k in ("orders", "product_matrix", "labs", "phase_capacity")}
 
@@ -391,13 +496,22 @@ def normalize_all(
 
     warnings: list[ValidationWarning] = []
 
-    orders_df, w = normalize_orders(pick("orders"))
+    orders_raw = pick("orders")
+    pm_raw = pick("product_matrix")
+    labs_raw = pick("labs")
+    pc_raw = pick("phase_capacity")
+
+    # Collect lab_id values referenced elsewhere so labs table can be expanded
+    # with sensible defaults instead of triggering "unknown lab_id" warnings.
+    extra_lab_ids = _collect_referenced_lab_ids(pc_raw, orders_raw)
+
+    orders_df, w = normalize_orders(orders_raw)
     warnings.extend(w)
-    pm_df, w = normalize_product_matrix(pick("product_matrix"))
+    pm_df, w = normalize_product_matrix(pm_raw)
     warnings.extend(w)
-    labs_df, w = normalize_labs(pick("labs"))
+    labs_df, w = normalize_labs(labs_raw, extra_lab_ids=extra_lab_ids)
     warnings.extend(w)
-    pc_df, w = normalize_phase_capacity(pick("phase_capacity"), labs_df)
+    pc_df, w = normalize_phase_capacity(pc_raw, labs_df)
     warnings.extend(w)
 
     return {
