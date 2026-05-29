@@ -8,7 +8,11 @@ import streamlit as st
 
 from src.components.kpi_cards import kpi_row
 from src.engines.bottleneck_engine import identify_bottlenecks
-from src.engines.capacity_engine import compute_capacity_results
+from src.engines.capacity_engine import (
+    aggregate_lab_phase,
+    compute_capacity_results,
+    overall_utilization,
+)
 from src.engines.scenario_engine import apply_scenario
 from src.engines.stress_engine import evaluate_all_stress
 from src.utils.formatting import fmt_int, fmt_pct, utilization_status
@@ -45,14 +49,16 @@ def _compute_overview_kpis() -> list[dict]:
 
     orders_scn, pc_scn = apply_scenario(orders_df, pc_df, scenario)
     cap = compute_capacity_results(orders_scn, pm_df, labs_df, pc_scn, planning_days=planning_days)
-    cap, _ = identify_bottlenecks(cap)
-    stress = evaluate_all_stress(orders_scn, cap, labs_df, pc_scn, scenario)
+    lab_phase = aggregate_lab_phase(cap)
+    cap, _ = identify_bottlenecks(cap, lab_phase)
+    stress = evaluate_all_stress(
+        orders_scn, cap, labs_df, pc_scn, scenario, lab_phase_df=lab_phase
+    )
 
     n_orders = len(orders_df)
     n_products = pm_df["product_type"].nunique() if not pm_df.empty else 0
 
-    finite = cap["utilization_rate"].replace([math.inf, -math.inf], math.nan).dropna()
-    overall_util = float(finite.mean()) if not finite.empty else math.inf
+    overall_util = overall_utilization(lab_phase)
     crit_alerts = int((stress["severity"] == "high").sum()) if not stress.empty else 0
 
     return [
