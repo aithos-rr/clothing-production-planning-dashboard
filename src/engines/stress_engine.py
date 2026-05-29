@@ -118,6 +118,48 @@ def evaluate_utilization_stress(capacity_results_df: pd.DataFrame) -> pd.DataFra
     return pd.DataFrame(events, columns=STRESS_EVENTS_COLS)
 
 
+# ---------- TASK-030 ----------
+def evaluate_aggregate_phase_stress(
+    capacity_results_df: pd.DataFrame,
+    lab_phase_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """Emit a PHASE_OVERLOAD event for each order that participates in a
+    lab-phase whose AGGREGATE load exceeds the phase-stress threshold.
+
+    This is the shared-capacity signal: three orders that each look fine alone
+    but together saturate a phase all get flagged, so recommendations can react.
+    Severity is MEDIUM so these flow into the at-risk branch (REALLOCATE/AT_RISK)
+    rather than forcing REJECT.
+    """
+    events: list[dict] = []
+    if lab_phase_df.empty or capacity_results_df.empty:
+        return pd.DataFrame(columns=STRESS_EVENTS_COLS)
+
+    overloaded = lab_phase_df[
+        lab_phase_df["utilization_rate"] > PHASE_STRESS_THRESHOLD
+    ]
+    for _, lp in overloaded.iterrows():
+        lab = lp["assigned_lab"]
+        phase = lp["phase_name"]
+        util = lp["utilization_rate"]
+        util_txt = f"{util * 100:.0f}%" if math.isfinite(util) else "∞"
+        members = capacity_results_df[
+            (capacity_results_df["assigned_lab"] == lab)
+            & (capacity_results_df["phase_name"] == phase)
+        ]
+        for order_id in members["order_id"].unique():
+            events.append(_make_event(
+                str(order_id),
+                EVENT_PHASE_OVERLOAD,
+                SEVERITY_MEDIUM,
+                f"Lab '{lab}' phase '{phase}' is aggregately at {util_txt} "
+                f"across {int(lp['num_orders'])} order(s) - shared capacity exceeded.",
+                triggered_by=f"aggregate lab-phase utilization > {int(PHASE_STRESS_THRESHOLD * 100)}%",
+                recommended_action="Reallocate or split orders sharing this phase",
+            ))
+    return pd.DataFrame(events, columns=STRESS_EVENTS_COLS)
+
+
 # ---------- TASK-021 ----------
 def _orders_overlap(a_start: date, a_end: date, b_start: date, b_end: date) -> bool:
     return a_start <= b_end and b_start <= a_end
@@ -262,21 +304,29 @@ def evaluate_all_stress(
     phase_capacity_df: pd.DataFrame,
     scenario: ScenarioInputs,
     today: date | None = None,
+    lab_phase_df: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
-    """Concatenate utilization + scenario / deadline stress events."""
+    """Concatenate utilization + scenario / deadline + aggregate-phase stress."""
     today = today or date.today()
     util_events = evaluate_utilization_stress(capacity_results_df)
     scen_events = evaluate_scenario_stress(
         orders_df, capacity_results_df, labs_df, phase_capacity_df, scenario, today
     )
-    if util_events.empty and scen_events.empty:
+    agg_events = (
+        evaluate_aggregate_phase_stress(capacity_results_df, lab_phase_df)
+        if lab_phase_df is not None
+        else pd.DataFrame(columns=STRESS_EVENTS_COLS)
+    )
+    frames = [f for f in (util_events, scen_events, agg_events) if not f.empty]
+    if not frames:
         return pd.DataFrame(columns=STRESS_EVENTS_COLS)
-    return pd.concat([util_events, scen_events], ignore_index=True)
+    return pd.concat(frames, ignore_index=True)
 
 
 __all__ = [
     "evaluate_utilization_stress",
     "evaluate_scenario_stress",
+    "evaluate_aggregate_phase_stress",
     "evaluate_all_stress",
     "STRESS_EVENTS_COLS",
 ]

@@ -6,7 +6,11 @@ import math
 import streamlit as st
 
 from src.engines.bottleneck_engine import identify_bottlenecks
-from src.engines.capacity_engine import compute_capacity_results
+from src.engines.capacity_engine import (
+    aggregate_lab_phase,
+    compute_capacity_results,
+    overall_utilization,
+)
 from src.engines.recommendation_engine import generate_recommendations
 from src.engines.scenario_engine import ScenarioInputs, apply_scenario
 from src.engines.stress_engine import evaluate_all_stress
@@ -16,14 +20,16 @@ from src.utils.constants import REC_ACCEPT
 def _snapshot(orders, pm, labs, pc, scenario, planning_days) -> dict:
     orders_scn, pc_scn = apply_scenario(orders, pc, scenario)
     cap = compute_capacity_results(orders_scn, pm, labs, pc_scn, planning_days=planning_days)
-    cap, _ = identify_bottlenecks(cap)
-    stress = evaluate_all_stress(orders_scn, cap, labs, pc_scn, scenario)
+    lab_phase = aggregate_lab_phase(cap)
+    cap, _ = identify_bottlenecks(cap, lab_phase)
+    stress = evaluate_all_stress(
+        orders_scn, cap, labs, pc_scn, scenario, lab_phase_df=lab_phase
+    )
     recs = generate_recommendations(cap, stress, orders_scn, pc_scn, pm)
 
-    finite = cap["utilization_rate"].replace([math.inf, -math.inf], math.nan).dropna()
     return {
-        "overall_utilization": float(finite.mean()) if not finite.empty else math.inf,
-        "overloaded_phases": int(cap[cap["is_overloaded"]]["phase_name"].nunique()),
+        "overall_utilization": overall_utilization(lab_phase),
+        "overloaded_phases": int(lab_phase[lab_phase["is_overloaded"]].shape[0]) if not lab_phase.empty else 0,
         "critical_events": int((stress["severity"] == "high").sum()) if not stress.empty else 0,
         "accepted_orders": int((recs["recommendation"] == REC_ACCEPT).sum()) if not recs.empty else 0,
     }

@@ -10,11 +10,11 @@ from datetime import date, timedelta
 
 import pandas as pd
 
-from src.utils.constants import TIMELINE_AT_RISK, TIMELINE_LATE, TIMELINE_ON_TRACK
+from src.utils.constants import TIMELINE_AT_RISK, TIMELINE_BLOCKED, TIMELINE_LATE, TIMELINE_ON_TRACK
 
 TIMELINE_COLS = [
     "order_id", "product_type", "assigned_lab", "start_date", "end_date",
-    "deadline", "duration_days", "overlap_flag", "status",
+    "deadline", "duration_days", "overlap_flag", "has_undefined_capacity", "status",
 ]
 
 
@@ -50,6 +50,12 @@ def build_timeline(
     phase's duration is `ceil(required_minutes / available_minutes_per_day)`
     for that specific (lab, phase) pair — *not* the lab's total daily capacity,
     which would over-allocate by pretending all phases run in parallel.
+
+    NOTE (capacity contention): duration is computed per order *in isolation* —
+    it assumes the order has the full daily lab-phase capacity to itself. It does
+    NOT model queuing when multiple orders share a lab-phase. `overlap_flag`
+    surfaces concurrent orders in the same lab as the proxy for that risk. A true
+    contention/scheduling model is intentionally out of scope (deterministic MVP).
     """
     if orders_df.empty:
         return pd.DataFrame(columns=TIMELINE_COLS)
@@ -80,11 +86,13 @@ def build_timeline(
         order_cap = cap_by_order.get(order_id)
         if order_cap is None or order_cap.empty:
             duration_days = 1
+            has_undefined_capacity = False
         else:
             # Sequential phases → sum of ceil(required / available_per_day) per phase.
             # Fallback: derive available_per_day from capacity_results_df itself
             # (available_minutes is already × planning_days).
             phase_durations: list[int] = []
+            has_undefined_capacity = False
             for _, prow in order_cap.iterrows():
                 required = float(prow["required_minutes"])
                 if required <= 0:
@@ -93,15 +101,19 @@ def build_timeline(
                 if avail_per_day <= 0 and prow["available_minutes"] > 0 and planning_days > 0:
                     avail_per_day = float(prow["available_minutes"]) / planning_days
                 if avail_per_day <= 0:
-                    # Phase unmatched → treat as a hard blocker, add a large penalty
-                    phase_durations.append(999)
+                    # Phase has no defined capacity for this (lab, phase): it cannot be
+                    # scheduled. Flag the order instead of inflating the duration with a
+                    # synthetic penalty (the old 999-day hack blew out the Gantt axis).
+                    has_undefined_capacity = True
                     continue
                 phase_durations.append(math.ceil(required / avail_per_day))
             duration_days = max(1, sum(phase_durations)) if phase_durations else 1
 
         end_date = _add_business_days(start, duration_days, working_days_per_week)
 
-        if deadline is None or pd.isna(deadline):
+        if has_undefined_capacity:
+            status = TIMELINE_BLOCKED
+        elif deadline is None or pd.isna(deadline):
             status = TIMELINE_ON_TRACK
         else:
             try:
@@ -124,6 +136,7 @@ def build_timeline(
             "deadline": deadline,
             "duration_days": duration_days,
             "overlap_flag": False,  # filled below
+            "has_undefined_capacity": has_undefined_capacity,
             "status": status,
         })
 

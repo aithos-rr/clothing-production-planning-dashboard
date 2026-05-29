@@ -6,7 +6,12 @@ import math
 import pandas as pd
 import pytest
 
-from src.engines.capacity_engine import compute_capacity_results
+from src.engines.capacity_engine import (
+    aggregate_lab_phase,
+    compute_capacity_results,
+    overall_utilization,
+)
+from src.engines.bottleneck_engine import identify_bottlenecks
 from src.utils.constants import SAFE_UTILIZATION_THRESHOLD
 
 
@@ -139,3 +144,126 @@ def test_unknown_product_emits_row_marked_overloaded() -> None:
     assert len(cap) == 1
     assert math.isinf(cap.iloc[0]["utilization_rate"])
     assert bool(cap.iloc[0]["is_overloaded"]) is True
+
+
+def _orders_multi(qty: int, order_id: str, lab: str = "L1") -> pd.DataFrame:
+    df = _orders(qty=qty, lab=lab)
+    df["order_id"] = order_id
+    return df
+
+
+def test_capacity_results_includes_assigned_lab() -> None:
+    cap = compute_capacity_results(
+        _orders(qty=10, lab="L1"), _product_matrix(avg=5.0), _labs(),
+        _phase_capacity(available_per_day=1000.0, lab="L1"), planning_days=1,
+    )
+    assert "assigned_lab" in cap.columns
+    assert cap.iloc[0]["assigned_lab"] == "L1"
+
+
+def test_aggregate_counts_capacity_once_across_orders() -> None:
+    orders = pd.concat([
+        _orders_multi(qty=24, order_id="O1"),
+        _orders_multi(qty=24, order_id="O2"),
+    ], ignore_index=True)
+    cap = compute_capacity_results(
+        orders, _product_matrix(avg=5.0), _labs(),
+        _phase_capacity(available_per_day=300.0, lab="L1"), planning_days=1,
+    )
+    agg = aggregate_lab_phase(cap)
+    assert len(agg) == 1
+    row = agg.iloc[0]
+    assert row["total_required_minutes"] == pytest.approx(240.0)
+    assert row["available_minutes"] == pytest.approx(300.0)
+    assert row["capacity_gap_minutes"] == pytest.approx(60.0)
+    assert row["utilization_rate"] == pytest.approx(240.0 / 300.0)
+    assert int(row["num_orders"]) == 2
+
+
+def test_aggregate_detects_shared_overload() -> None:
+    orders = pd.concat([
+        _orders_multi(qty=24, order_id=f"O{i}") for i in range(3)
+    ], ignore_index=True)
+    cap = compute_capacity_results(
+        orders, _product_matrix(avg=5.0), _labs(),
+        _phase_capacity(available_per_day=300.0, lab="L1"), planning_days=1,
+    )
+    agg = aggregate_lab_phase(cap)
+    assert agg.iloc[0]["utilization_rate"] == pytest.approx(1.2)
+    assert bool(agg.iloc[0]["is_overloaded"]) is True
+
+
+def test_overall_utilization_is_weighted_not_mean() -> None:
+    # Group A: required 100 / available 100 = 100%
+    # Group B: required 100 / available 900 = ~11%
+    # Mean of ratios = 55.5%. Weighted (ratio of sums) = 200/1000 = 20%.
+    # overall_utilization must return the WEIGHTED 20%, not 55.5%.
+    lab_phase = pd.DataFrame([
+        {"assigned_lab": "L1", "phase_name": "A", "total_required_minutes": 100.0,
+         "available_minutes": 100.0, "utilization_rate": 1.0,
+         "capacity_gap_minutes": 0.0, "is_overloaded": True, "num_orders": 1},
+        {"assigned_lab": "L1", "phase_name": "B", "total_required_minutes": 100.0,
+         "available_minutes": 900.0, "utilization_rate": 100.0 / 900.0,
+         "capacity_gap_minutes": 800.0, "is_overloaded": False, "num_orders": 1},
+    ])
+    assert overall_utilization(lab_phase) == pytest.approx(200.0 / 1000.0)
+
+
+def test_aggregate_empty_returns_empty() -> None:
+    agg = aggregate_lab_phase(pd.DataFrame(columns=["assigned_lab", "phase_name"]))
+    assert agg.empty
+
+
+def test_aggregate_excludes_unknown_product_rows() -> None:
+    # One real lab-phase row + one "<unknown product>" placeholder row
+    # (emitted by compute_capacity_results for orders with no product match).
+    # The placeholder must NOT become a phantom lab-phase in the aggregate.
+    cap = pd.DataFrame([
+        {"order_id": "O1", "assigned_lab": "L1", "product_type": "P",
+         "phase_name": "cut", "quantity": 10,
+         "required_minutes": 100.0, "available_minutes": 300.0,
+         "utilization_rate": 100.0 / 300.0, "capacity_gap_minutes": 200.0,
+         "is_overloaded": False, "is_bottleneck": False},
+        {"order_id": "O2", "assigned_lab": "L1", "product_type": "Ghost",
+         "phase_name": "<unknown product>", "quantity": 5,
+         "required_minutes": 0.0, "available_minutes": 0.0,
+         "utilization_rate": float("inf"), "capacity_gap_minutes": 0.0,
+         "is_overloaded": True, "is_bottleneck": False},
+    ])
+    agg = aggregate_lab_phase(cap)
+    assert "<unknown product>" not in set(agg["phase_name"])
+    assert len(agg) == 1
+    assert agg.iloc[0]["phase_name"] == "cut"
+
+
+def test_most_critical_phase_uses_aggregate_not_single_order() -> None:
+    # phase "low" has ONE order at 85% utilization — the per-order worst case
+    # (max per phase) would pick it over "shared" whose individual orders are 40%.
+    # phase "shared" has THREE orders each 40%, but their AGGREGATE load is
+    # 120/100 = 120% — the real bottleneck.
+    # The aggregate-aware logic must pick "shared" (the real bottleneck), not "low".
+    def row(order_id, phase, required, available):
+        return {
+            "order_id": order_id, "assigned_lab": "L1", "product_type": "P",
+            "phase_name": phase, "quantity": 10,
+            "required_minutes": required, "available_minutes": available,
+            "utilization_rate": (required / available) if available else float("inf"),
+            "capacity_gap_minutes": available - required,
+            "is_overloaded": (required / available) > 0.85 if available else True,
+            "is_bottleneck": False,
+        }
+    cap = pd.DataFrame([
+        row("A", "low", 85, 100),   # per-order util=0.85 > shared per-order 0.4
+        row("B", "shared", 40, 100),
+        row("C", "shared", 40, 100),
+        row("D", "shared", 40, 100),
+    ])
+    agg = aggregate_lab_phase(cap)
+    # Verify the aggregate is as expected before checking identify_bottlenecks.
+    # agg "low": total_required=85, available=100 → util=0.85
+    # agg "shared": total_required=120, available=100 → util=1.20
+    assert agg.loc[agg["phase_name"] == "shared", "utilization_rate"].iloc[0] == pytest.approx(1.2)
+    assert agg.loc[agg["phase_name"] == "low", "utilization_rate"].iloc[0] == pytest.approx(0.85)
+    _, summary = identify_bottlenecks(cap, agg)
+    assert summary["most_critical_phase"] == "shared"
+    assert summary["most_critical_phase_utilization"] == pytest.approx(1.2)

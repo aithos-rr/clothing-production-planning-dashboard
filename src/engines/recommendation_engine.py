@@ -38,10 +38,14 @@ RECOMMENDATIONS_COLS = [
 
 
 def _order_utilization(group: pd.DataFrame) -> float:
-    """Aggregate utilization for an order: mean of finite, inf if any inf."""
+    """Worst-phase utilization for an order: max of finite, inf if any inf.
+
+    Max (not mean) because a single phase over capacity makes the order
+    infeasible even if its other phases are light.
+    """
     if (~group["utilization_rate"].apply(lambda v: math.isfinite(v))).any():
         return math.inf
-    return float(group["utilization_rate"].mean())
+    return float(group["utilization_rate"].max())
 
 
 def _phase_reasons(group: pd.DataFrame) -> list[str]:
@@ -154,7 +158,7 @@ def generate_recommendations(
         ):
             reasons.extend(_phase_reasons(group))
             if math.isfinite(util):
-                reasons.append(f"Aggregate utilization at {util * 100:.0f}%")
+                reasons.append(f"Worst per-order phase utilization at {util * 100:.0f}% (this order alone)")
             for _, ev in events.iterrows():
                 reasons.append(str(ev["message"]))
 
@@ -180,8 +184,8 @@ def generate_recommendations(
             recommendation = REC_ACCEPT
             severity = SEVERITY_LOW
             reasons.append(
-                f"All phases below {int(SAFE_UTILIZATION_THRESHOLD * 100)}% utilization "
-                f"(aggregate {util * 100:.0f}%)"
+                f"All phases below {int(SAFE_UTILIZATION_THRESHOLD * 100)}% per-order utilization "
+                f"(worst per-order phase {util * 100:.0f}%)"
             )
             reasons.append("No critical stress events detected")
             actions.append("Proceed with production as scheduled")

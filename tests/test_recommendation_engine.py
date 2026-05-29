@@ -22,9 +22,9 @@ from src.utils.constants import (
 )
 
 
-def _cap_row(order_id: str, util: float, qty: int = 50, phase: str = "ph1") -> dict:
+def _cap_row(order_id: str, util: float, qty: int = 50, phase: str = "ph1", lab: str = "L1") -> dict:
     return {
-        "order_id": order_id, "product_type": "P", "phase_name": phase,
+        "order_id": order_id, "assigned_lab": lab, "product_type": "P", "phase_name": phase,
         "quantity": qty,
         "required_minutes": util * 100.0, "available_minutes": 100.0,
         "utilization_rate": util, "capacity_gap_minutes": 100.0 - util * 100.0,
@@ -140,3 +140,14 @@ def test_medium_severity_alone_triggers_at_risk_or_reallocate() -> None:
     }])
     recs = generate_recommendations(cap, stress, _orders(), _pc(labs=("L1", "L2")), _pm())
     assert recs.iloc[0]["recommendation"] in {REC_AT_RISK, REC_REALLOCATE}
+
+
+def test_order_utilization_uses_worst_phase_not_mean() -> None:
+    # Two phases: one at 30%, one at 120%. Mean = 75% (would be ACCEPT);
+    # max = 120% -> must NOT be ACCEPT.
+    cap = pd.DataFrame([
+        _cap_row("O1", util=0.3, phase="ph1"),
+        _cap_row("O1", util=1.2, phase="ph2"),
+    ])
+    recs = generate_recommendations(cap, _empty_stress(), _orders(), _pc(), _pm())
+    assert recs.iloc[0]["recommendation"] != REC_ACCEPT

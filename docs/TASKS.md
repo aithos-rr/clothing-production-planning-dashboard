@@ -1118,6 +1118,43 @@ DONE
 
 ---
 
+## TASK-041 — Capacity Aggregation Fix (lab-phase truth model)
+
+### Description
+Post-deploy fix for inconsistent capacity KPIs (the "Total capacity gap = 41132h"
+artifact, diluted overall utilization, and the "phase at 235% but all orders
+ACCEPT" contradiction). Root cause: KPIs summed/averaged the per-(order,phase)
+table, where each lab-phase's available capacity is repeated per order. The fix
+aggregates first per `(assigned_lab, phase_name)` — capacity counted once — and
+feeds that aggregate to KPIs, charts, the most-critical-phase summary, and the
+stress/recommendation engines. See `docs/superpowers/specs/2026-05-29-capacity-aggregation-fix-design.md`
+and `docs/superpowers/plans/2026-05-29-capacity-aggregation-fix.md`.
+
+### Dependencies
+TASK-019 (capacity engine), TASK-020 (stress), TASK-022 (recommendation),
+TASK-025 (charts), TASK-031 (capacity dashboard), TASK-032 (phase saturation)
+
+### Expected Output
+- `capacity_engine`: `assigned_lab` column on results + `aggregate_lab_phase` + `overall_utilization`.
+- `bottleneck_engine`: most-critical phase from aggregate.
+- `stress_engine`: `evaluate_aggregate_phase_stress` wired into `evaluate_all_stress`.
+- `recommendation_engine`: order utilization uses worst phase (max), not mean.
+- `charts`: aggregate utilization + lab-phase capacity-gap bars.
+- Pages `capacity_dashboard`, `overview`, `scenario_testing`, `phase_saturation` read the aggregate.
+- `timeline_engine`: documented order-in-isolation assumption.
+- Tests for aggregate, weighted utilization, and "shared overload blocks blanket ACCEPT".
+
+### Acceptance Criteria
+- On the bundled sample (5-day window): overall utilization ≈ 96%, minimum
+  capacity gap a readable minute figure (not ~41000h), and orders sharing an
+  aggregately-overloaded phase are no longer all ACCEPT.
+- `pytest tests/ -v` green.
+
+### Status
+DONE
+
+---
+
 # Loop-Compatible Iteration Protocol
 
 For AI agents executing this file in iterative mode (Claude Code, Cloud Code, Ralf Loop):

@@ -59,3 +59,4 @@ EVENT_DEADLINE_INFEASIBLE: str = "deadline_infeasible"
 TIMELINE_ON_TRACK: str = "on_track"
 TIMELINE_AT_RISK: str = "at_risk"
 TIMELINE_LATE: str = "late"
+TIMELINE_BLOCKED: str = "blocked"  # a required phase has no defined capacity
