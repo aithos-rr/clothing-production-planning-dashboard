@@ -417,6 +417,21 @@ Status thresholds:
   utilization <  0.85 → safe     (verde)
 ```
 
+```
+# Aggregate layer — the capacity truth (per assigned_lab + phase_name)
+total_required(lab,phase)  = Σ required_minutes over orders assigned to that lab-phase
+available(lab,phase)       = available_minutes_per_day × planning_days   (counted ONCE)
+utilization(lab,phase)     = total_required / available
+capacity_gap(lab,phase)    = available − total_required
+
+overall_utilization = Σ total_required / Σ available   (over all lab-phases)
+
+KPI "Minimum capacity gap" = min(capacity_gap) across lab-phases  (worst bottleneck)
+Most critical phase        = lab-phase with the highest aggregate utilization
+```
+
+Il modello usa **due livelli di calcolo**. Il livello per-(ordine, fase) risponde a "questo singolo ordine satura da solo una fase?" ed è la base per le decisioni SPLIT/REJECT sui singoli ordini. Il livello aggregato per lab-fase risponde a "tutti gli ordini insieme saturano la fase?" ed è la fonte dei KPI a schermo (utilizzo complessivo, capacity gap minimo, fasi in overload, fase più critica). Il vecchio KPI sommava `available − required` riga per riga, contando la capacità disponibile N volte — una per ogni ordine — producendo numeri gonfiati dell'ordine di "41132h"; ora la capacità è contata **una sola volta** per ciascuna coppia (lab, fase).
+
 ---
 
 ## 8. Deployment — Railway

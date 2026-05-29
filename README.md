@@ -145,6 +145,21 @@ parallel-order limits, etc.) live in [`config/defaults.yaml`](./config/defaults.
 and are loaded once via `src/utils/config.py`. Tune them without code changes;
 status thresholds shared with the UI are mirrored in `src/utils/constants.py`.
 
+## How capacity is computed
+
+The dashboard uses a **two-level capacity model**:
+
+1. **Per order × phase** — `required = quantity × avg_time + setup`; answers
+   "does this single order saturate a phase on its own?" (drives SPLIT / REJECT).
+2. **Aggregate per lab × phase** — all orders sharing a `(lab, phase)` are summed
+   against that phase's capacity, which is counted **once**:
+   `utilization = Σ required / available`, `gap = available − Σ required`.
+
+On-screen KPIs (overall utilization, minimum capacity gap, overloaded phases,
+most critical phase) come from the **aggregate** level. This prevents the
+capacity of a shared phase from being double-counted across orders — the bug
+that previously inflated the total-gap KPI into the tens of thousands of hours.
+
 ## Deployment (Railway)
 
 `railway.json` configures a NIXPACKS build and launches Streamlit on the
