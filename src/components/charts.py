@@ -47,34 +47,33 @@ def _base_layout(fig: go.Figure, title: str | None = None) -> go.Figure:
     return fig
 
 
-def phase_utilization_bar(capacity_results_df: pd.DataFrame) -> go.Figure:
-    """Horizontal bar chart of utilization per phase, colored by status.
+def phase_utilization_bar(lab_phase_df: pd.DataFrame) -> go.Figure:
+    """Horizontal bar chart of AGGREGATE utilization per lab-phase, colored by status.
 
-    Uses the **worst case** (max across orders) rather than the mean, since a
-    single overloaded order makes the phase operationally critical even if the
-    average looks healthy.
+    Aggregate (sum required / available per lab-phase) is the real capacity picture —
+    it reflects all orders sharing a phase, not a single worst-case order.
     """
-    if capacity_results_df.empty:
+    if lab_phase_df.empty:
         return _empty_figure("No capacity data yet")
 
-    finite_util = capacity_results_df["utilization_rate"].replace(
+    finite_util = lab_phase_df["utilization_rate"].replace(
         [float("inf"), float("-inf")], float("nan")
     )
-    per_phase = (
-        capacity_results_df.assign(_u=finite_util)
-        .groupby("phase_name")["_u"]
-        .max()
-        .dropna()
-        .sort_values(ascending=True)
+    work = (
+        lab_phase_df.assign(_u=finite_util)
+        .dropna(subset=["_u"])
+        .copy()
     )
-    if per_phase.empty:
+    if work.empty:
         return _empty_figure("All phases have undefined capacity")
+    work["_label"] = work["phase_name"].astype(str) + " · " + work["assigned_lab"].astype(str)
+    work = work.sort_values("_u", ascending=True)
 
-    colors = [STATUS_COLORS[utilization_status(v)] for v in per_phase.values]
+    colors = [STATUS_COLORS[utilization_status(v)] for v in work["_u"].values]
     fig = go.Figure(
         go.Bar(
-            x=per_phase.values,
-            y=per_phase.index,
+            x=work["_u"].values,
+            y=work["_label"].values,
             orientation="h",
             marker=dict(color=colors),
             hovertemplate="%{y}: %{x:.0%}<extra></extra>",
@@ -84,32 +83,38 @@ def phase_utilization_bar(capacity_results_df: pd.DataFrame) -> go.Figure:
         x=CRITICAL_UTILIZATION_THRESHOLD,
         line=dict(color="#9CA3AF", width=1, dash="dash"),
     )
-    fig = _base_layout(fig, title="Phase utilization (worst case across orders)")
-    fig.update_xaxes(tickformat=".0%", range=[0, max(1.2, per_phase.max() * 1.1)])
+    fig = _base_layout(fig, title="Aggregate utilization by lab-phase")
+    fig.update_xaxes(tickformat=".0%", range=[0, max(1.2, float(work["_u"].max()) * 1.1)])
     return fig
 
 
-def order_capacity_gap_bar(capacity_results_df: pd.DataFrame) -> go.Figure:
-    """Bar chart of capacity gap per order (sum across phases). Negative in red."""
-    if capacity_results_df.empty:
+def lab_phase_capacity_gap_bar(lab_phase_df: pd.DataFrame) -> go.Figure:
+    """Bar chart of AGGREGATE capacity gap per lab-phase. Negative (deficit) in red.
+
+    Gap = available - sum required, capacity counted once per lab-phase. Replaces the
+    old per-order gap chart that inflated capacity by crediting it to each order.
+    """
+    if lab_phase_df.empty:
         return _empty_figure("No capacity data yet")
 
-    per_order = capacity_results_df.groupby("order_id")["capacity_gap_minutes"].sum().sort_values()
+    work = lab_phase_df.copy()
+    work["_label"] = work["phase_name"].astype(str) + " · " + work["assigned_lab"].astype(str)
+    work = work.sort_values("capacity_gap_minutes")
     colors = [
         STATUS_COLORS["critical"] if v < 0 else STATUS_COLORS["safe"]
-        for v in per_order.values
+        for v in work["capacity_gap_minutes"].values
     ]
     fig = go.Figure(
         go.Bar(
-            x=per_order.index,
-            y=per_order.values,
+            x=work["_label"].values,
+            y=work["capacity_gap_minutes"].values,
             marker=dict(color=colors),
             hovertemplate="%{x}: %{y:.0f} min<extra></extra>",
         )
     )
     fig.add_hline(y=0, line=dict(color="#9CA3AF", width=1))
-    fig = _base_layout(fig, title="Capacity gap by order (minutes)")
+    fig = _base_layout(fig, title="Capacity gap by lab-phase (minutes)")
     return fig
 
 
-__all__ = ["phase_utilization_bar", "order_capacity_gap_bar"]
+__all__ = ["phase_utilization_bar", "lab_phase_capacity_gap_bar"]
