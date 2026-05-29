@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 from src.utils.constants import (
     STATUS_COLORS,
     TIMELINE_AT_RISK,
+    TIMELINE_BLOCKED,
     TIMELINE_LATE,
     TIMELINE_ON_TRACK,
 )
@@ -18,6 +19,7 @@ _STATUS_COLOR_MAP = {
     TIMELINE_ON_TRACK: STATUS_COLORS["safe"],
     TIMELINE_AT_RISK: STATUS_COLORS["at_risk"],
     TIMELINE_LATE: STATUS_COLORS["critical"],
+    TIMELINE_BLOCKED: STATUS_COLORS["neutral"],
 }
 
 

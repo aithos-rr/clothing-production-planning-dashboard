@@ -10,6 +10,7 @@ from src.engines.timeline_engine import build_timeline
 from src.utils.constants import (
     STATUS_COLORS,
     TIMELINE_AT_RISK,
+    TIMELINE_BLOCKED,
     TIMELINE_LATE,
     TIMELINE_ON_TRACK,
 )
@@ -40,7 +41,7 @@ def render() -> None:
         lab_options = sorted(timeline["assigned_lab"].dropna().unique().tolist())
         sel_labs = st.multiselect("Lab", lab_options, default=lab_options)
     with col2:
-        status_options = [TIMELINE_ON_TRACK, TIMELINE_AT_RISK, TIMELINE_LATE]
+        status_options = [TIMELINE_ON_TRACK, TIMELINE_AT_RISK, TIMELINE_LATE, TIMELINE_BLOCKED]
         sel_status = st.multiselect("Status", status_options, default=status_options)
 
     filtered = timeline[
@@ -52,6 +53,7 @@ def render() -> None:
     legend_html = (
         f"<span style='color:{STATUS_COLORS['safe']}'>● on_track</span> &nbsp; "
         f"<span style='color:{STATUS_COLORS['at_risk']}'>● at_risk</span> &nbsp; "
-        f"<span style='color:{STATUS_COLORS['critical']}'>● late</span>"
+        f"<span style='color:{STATUS_COLORS['critical']}'>● late</span> &nbsp; "
+        f"<span style='color:{STATUS_COLORS['neutral']}'>● blocked (no capacity defined)</span>"
     )
     st.markdown(legend_html, unsafe_allow_html=True)
