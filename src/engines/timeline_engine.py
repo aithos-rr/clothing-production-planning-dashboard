@@ -50,6 +50,12 @@ def build_timeline(
     phase's duration is `ceil(required_minutes / available_minutes_per_day)`
     for that specific (lab, phase) pair — *not* the lab's total daily capacity,
     which would over-allocate by pretending all phases run in parallel.
+
+    NOTE (capacity contention): duration is computed per order *in isolation* —
+    it assumes the order has the full daily lab-phase capacity to itself. It does
+    NOT model queuing when multiple orders share a lab-phase. `overlap_flag`
+    surfaces concurrent orders in the same lab as the proxy for that risk. A true
+    contention/scheduling model is intentionally out of scope (deterministic MVP).
     """
     if orders_df.empty:
         return pd.DataFrame(columns=TIMELINE_COLS)
