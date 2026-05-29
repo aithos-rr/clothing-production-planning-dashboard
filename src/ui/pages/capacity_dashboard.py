@@ -72,8 +72,9 @@ def render() -> None:
 
     gap_sign = "feasible overall" if total_gap >= 0 else "capacity shortfall"
     st.caption(
-        f"Aggregate gap across all lab-phases: **{fmt_minutes(total_gap)}** ({gap_sign}). "
-        "The KPI above shows the single most critical lab-phase."
+        f"Minimum capacity gap = the single worst lab-phase. "
+        f"Aggregate gap (net across all lab-phases) = **{fmt_minutes(total_gap)}** ({gap_sign})"
+        " — surplus phases offset overloaded ones, so the aggregate can be less negative than the minimum."
     )
 
     if summary.get("most_critical_phase"):
@@ -95,4 +96,9 @@ def render() -> None:
 
     # --- Recommendations ---
     st.subheader("Recommendations")
+    st.caption(
+        "Reasons show two levels: *per-order* utilization (this order alone vs a "
+        "phase's capacity) and *aggregate* lab-phase load (all orders sharing the "
+        "phase). A low per-order figure with a high aggregate one is expected, not a bug."
+    )
     render_recommendation_panel(recs)

@@ -158,7 +158,7 @@ def generate_recommendations(
         ):
             reasons.extend(_phase_reasons(group))
             if math.isfinite(util):
-                reasons.append(f"Worst-phase utilization at {util * 100:.0f}%")
+                reasons.append(f"Worst per-order phase utilization at {util * 100:.0f}% (this order alone)")
             for _, ev in events.iterrows():
                 reasons.append(str(ev["message"]))
 
@@ -184,8 +184,8 @@ def generate_recommendations(
             recommendation = REC_ACCEPT
             severity = SEVERITY_LOW
             reasons.append(
-                f"All phases below {int(SAFE_UTILIZATION_THRESHOLD * 100)}% utilization "
-                f"(worst phase {util * 100:.0f}%)"
+                f"All phases below {int(SAFE_UTILIZATION_THRESHOLD * 100)}% per-order utilization "
+                f"(worst per-order phase {util * 100:.0f}%)"
             )
             reasons.append("No critical stress events detected")
             actions.append("Proceed with production as scheduled")
