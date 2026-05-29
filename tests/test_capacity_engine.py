@@ -139,3 +139,73 @@ def test_unknown_product_emits_row_marked_overloaded() -> None:
     assert len(cap) == 1
     assert math.isinf(cap.iloc[0]["utilization_rate"])
     assert bool(cap.iloc[0]["is_overloaded"]) is True
+
+
+from src.engines.capacity_engine import (
+    aggregate_lab_phase,
+    overall_utilization,
+)
+
+
+def _orders_multi(qty: int, order_id: str, lab: str = "L1") -> pd.DataFrame:
+    df = _orders(qty=qty, lab=lab)
+    df["order_id"] = order_id
+    return df
+
+
+def test_capacity_results_includes_assigned_lab() -> None:
+    cap = compute_capacity_results(
+        _orders(qty=10, lab="L1"), _product_matrix(avg=5.0), _labs(),
+        _phase_capacity(available_per_day=1000.0, lab="L1"), planning_days=1,
+    )
+    assert "assigned_lab" in cap.columns
+    assert cap.iloc[0]["assigned_lab"] == "L1"
+
+
+def test_aggregate_counts_capacity_once_across_orders() -> None:
+    orders = pd.concat([
+        _orders_multi(qty=24, order_id="O1"),
+        _orders_multi(qty=24, order_id="O2"),
+    ], ignore_index=True)
+    cap = compute_capacity_results(
+        orders, _product_matrix(avg=5.0), _labs(),
+        _phase_capacity(available_per_day=300.0, lab="L1"), planning_days=1,
+    )
+    agg = aggregate_lab_phase(cap)
+    assert len(agg) == 1
+    row = agg.iloc[0]
+    assert row["total_required_minutes"] == pytest.approx(240.0)
+    assert row["available_minutes"] == pytest.approx(300.0)
+    assert row["capacity_gap_minutes"] == pytest.approx(60.0)
+    assert row["utilization_rate"] == pytest.approx(240.0 / 300.0)
+    assert int(row["num_orders"]) == 2
+
+
+def test_aggregate_detects_shared_overload() -> None:
+    orders = pd.concat([
+        _orders_multi(qty=24, order_id=f"O{i}") for i in range(3)
+    ], ignore_index=True)
+    cap = compute_capacity_results(
+        orders, _product_matrix(avg=5.0), _labs(),
+        _phase_capacity(available_per_day=300.0, lab="L1"), planning_days=1,
+    )
+    agg = aggregate_lab_phase(cap)
+    assert agg.iloc[0]["utilization_rate"] == pytest.approx(1.2)
+    assert bool(agg.iloc[0]["is_overloaded"]) is True
+
+
+def test_overall_utilization_is_weighted_not_mean() -> None:
+    orders = pd.concat([
+        _orders_multi(qty=24, order_id=f"O{i}") for i in range(3)
+    ], ignore_index=True)
+    cap = compute_capacity_results(
+        orders, _product_matrix(avg=5.0), _labs(),
+        _phase_capacity(available_per_day=300.0, lab="L1"), planning_days=1,
+    )
+    agg = aggregate_lab_phase(cap)
+    assert overall_utilization(agg) == pytest.approx(360.0 / 300.0)
+
+
+def test_aggregate_empty_returns_empty() -> None:
+    agg = aggregate_lab_phase(pd.DataFrame(columns=["assigned_lab", "phase_name"]))
+    assert agg.empty
