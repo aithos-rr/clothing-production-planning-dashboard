@@ -14,7 +14,7 @@ from src.engines.capacity_engine import (
 from src.engines.recommendation_engine import generate_recommendations
 from src.engines.scenario_engine import ScenarioInputs
 from src.engines.stress_engine import evaluate_all_stress
-from src.utils.constants import REC_ACCEPT
+from src.utils.constants import REC_ACCEPT, REC_AT_RISK
 
 
 def _orders(n: int, lab: str = "L1") -> pd.DataFrame:
@@ -53,6 +53,11 @@ def _pc(available_per_day: float = 300.0) -> pd.DataFrame:
 def test_shared_overload_blocks_blanket_accept() -> None:
     # 3 orders x (40 x 5) = 200 each -> aggregate 600 vs available 300 -> 200%.
     # Each order ALONE is 200/300 = 67% (< 85% -> would be ACCEPT individually).
+    #
+    # NOTE: with n=3, the parallel-overload rule (MAX_PARALLEL_ORDERS_PER_LAB=2)
+    # ALSO independently blocks ACCEPT, so this test does NOT isolate the aggregate
+    # signal — it passes even without lab_phase_df.  The n=2 test below is the one
+    # that proves the aggregate signal is load-bearing.
     orders = _orders(3)
     cap = compute_capacity_results(orders, _pm(), _labs(), _pc(300.0), planning_days=1)
     agg = aggregate_lab_phase(cap)
@@ -63,3 +68,32 @@ def test_shared_overload_blocks_blanket_accept() -> None:
     )
     recs = generate_recommendations(cap, stress, orders, _pc(300.0), _pm())
     assert (recs["recommendation"] != REC_ACCEPT).all()
+
+
+def test_two_order_shared_overload_requires_aggregate_signal() -> None:
+    # 2 orders x (40 x 5) = 200 each. available = 300.
+    # Per-order util = 200/300 = 67% (< 85%). Aggregate = 400/300 = 133%.
+    # n=2 == MAX_PARALLEL_ORDERS_PER_LAB, so parallel-overload does NOT fire:
+    # the ONLY thing that can block ACCEPT here is the aggregate signal.
+    orders = _orders(2)
+    cap = compute_capacity_results(orders, _pm(), _labs(), _pc(300.0), planning_days=1)
+    agg = aggregate_lab_phase(cap)
+    cap_b, _ = identify_bottlenecks(cap, agg)
+
+    # Baseline (pre-fix behavior): WITHOUT the aggregate signal, both orders ACCEPT.
+    stress_without = evaluate_all_stress(
+        orders, cap_b, _labs(), _pc(300.0), ScenarioInputs(), today=date(2026, 6, 1),
+    )
+    recs_without = generate_recommendations(cap_b, stress_without, orders, _pc(300.0), _pm())
+    assert (recs_without["recommendation"] == REC_ACCEPT).all(), (
+        "baseline premise broken: orders should be ACCEPT without the aggregate signal"
+    )
+
+    # With the aggregate signal: both orders are flagged (not ACCEPT).
+    stress_with = evaluate_all_stress(
+        orders, cap_b, _labs(), _pc(300.0), ScenarioInputs(), today=date(2026, 6, 1),
+        lab_phase_df=agg,
+    )
+    recs_with = generate_recommendations(cap_b, stress_with, orders, _pc(300.0), _pm())
+    assert (recs_with["recommendation"] != REC_ACCEPT).all()
+    assert (recs_with["recommendation"] == REC_AT_RISK).all()
