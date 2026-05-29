@@ -11,6 +11,7 @@ from src.engines.capacity_engine import (
     compute_capacity_results,
     overall_utilization,
 )
+from src.engines.bottleneck_engine import identify_bottlenecks
 from src.utils.constants import SAFE_UTILIZATION_THRESHOLD
 
 
@@ -211,3 +212,36 @@ def test_overall_utilization_is_weighted_not_mean() -> None:
 def test_aggregate_empty_returns_empty() -> None:
     agg = aggregate_lab_phase(pd.DataFrame(columns=["assigned_lab", "phase_name"]))
     assert agg.empty
+
+
+def test_most_critical_phase_uses_aggregate_not_single_order() -> None:
+    # phase "low" has ONE order at 85% utilization — the per-order worst case
+    # (max per phase) would pick it over "shared" whose individual orders are 40%.
+    # phase "shared" has THREE orders each 40%, but their AGGREGATE load is
+    # 120/100 = 120% — the real bottleneck.
+    # The aggregate-aware logic must pick "shared" (the real bottleneck), not "low".
+    def row(order_id, phase, required, available):
+        return {
+            "order_id": order_id, "assigned_lab": "L1", "product_type": "P",
+            "phase_name": phase, "quantity": 10,
+            "required_minutes": required, "available_minutes": available,
+            "utilization_rate": (required / available) if available else float("inf"),
+            "capacity_gap_minutes": available - required,
+            "is_overloaded": (required / available) > 0.85 if available else True,
+            "is_bottleneck": False,
+        }
+    cap = pd.DataFrame([
+        row("A", "low", 85, 100),   # per-order util=0.85 > shared per-order 0.4
+        row("B", "shared", 40, 100),
+        row("C", "shared", 40, 100),
+        row("D", "shared", 40, 100),
+    ])
+    agg = aggregate_lab_phase(cap)
+    # Verify the aggregate is as expected before checking identify_bottlenecks.
+    # agg "low": total_required=85, available=100 → util=0.85
+    # agg "shared": total_required=120, available=100 → util=1.20
+    assert agg.loc[agg["phase_name"] == "shared", "utilization_rate"].iloc[0] == pytest.approx(1.2)
+    assert agg.loc[agg["phase_name"] == "low", "utilization_rate"].iloc[0] == pytest.approx(0.85)
+    _, summary = identify_bottlenecks(cap, agg)
+    assert summary["most_critical_phase"] == "shared"
+    assert summary["most_critical_phase_utilization"] == pytest.approx(1.2)
