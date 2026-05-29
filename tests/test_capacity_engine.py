@@ -214,6 +214,28 @@ def test_aggregate_empty_returns_empty() -> None:
     assert agg.empty
 
 
+def test_aggregate_excludes_unknown_product_rows() -> None:
+    # One real lab-phase row + one "<unknown product>" placeholder row
+    # (emitted by compute_capacity_results for orders with no product match).
+    # The placeholder must NOT become a phantom lab-phase in the aggregate.
+    cap = pd.DataFrame([
+        {"order_id": "O1", "assigned_lab": "L1", "product_type": "P",
+         "phase_name": "cut", "quantity": 10,
+         "required_minutes": 100.0, "available_minutes": 300.0,
+         "utilization_rate": 100.0 / 300.0, "capacity_gap_minutes": 200.0,
+         "is_overloaded": False, "is_bottleneck": False},
+        {"order_id": "O2", "assigned_lab": "L1", "product_type": "Ghost",
+         "phase_name": "<unknown product>", "quantity": 5,
+         "required_minutes": 0.0, "available_minutes": 0.0,
+         "utilization_rate": float("inf"), "capacity_gap_minutes": 0.0,
+         "is_overloaded": True, "is_bottleneck": False},
+    ])
+    agg = aggregate_lab_phase(cap)
+    assert "<unknown product>" not in set(agg["phase_name"])
+    assert len(agg) == 1
+    assert agg.iloc[0]["phase_name"] == "cut"
+
+
 def test_most_critical_phase_uses_aggregate_not_single_order() -> None:
     # phase "low" has ONE order at 85% utilization — the per-order worst case
     # (max per phase) would pick it over "shared" whose individual orders are 40%.

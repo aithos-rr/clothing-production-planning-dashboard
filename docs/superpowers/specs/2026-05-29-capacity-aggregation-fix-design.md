@@ -98,6 +98,7 @@ Eliminates the "phase at 250% but all orders ACCEPT" contradiction.
   `EVENT_UTILIZATION_CRITICAL` (≥100%) / `EVENT_PHASE_OVERLOAD` (between phase-stress
   threshold and 100%) for aggregately-overloaded lab-phase groups, **attributed to
   each participating order** so they flow into recommendations.
+  > **Implementation note:** the aggregate signal emits only EVENT_PHASE_OVERLOAD at SEVERITY_MEDIUM (never EVENT_UTILIZATION_CRITICAL), so a shared-capacity overload routes participating orders to AT_RISK/REALLOCATE rather than auto-REJECT — an order that is fine on its own should not be rejected merely for sharing a busy phase. The per-order critical signal (an order that alone exceeds a phase) still comes from evaluate_utilization_stress.
 - Existing per-order events stay ("this order alone is infeasible"), messages
   clarified to distinguish solo vs aggregate.
 
