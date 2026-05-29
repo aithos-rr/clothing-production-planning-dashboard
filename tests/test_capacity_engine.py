@@ -6,7 +6,11 @@ import math
 import pandas as pd
 import pytest
 
-from src.engines.capacity_engine import compute_capacity_results
+from src.engines.capacity_engine import (
+    aggregate_lab_phase,
+    compute_capacity_results,
+    overall_utilization,
+)
 from src.utils.constants import SAFE_UTILIZATION_THRESHOLD
 
 
@@ -141,12 +145,6 @@ def test_unknown_product_emits_row_marked_overloaded() -> None:
     assert bool(cap.iloc[0]["is_overloaded"]) is True
 
 
-from src.engines.capacity_engine import (
-    aggregate_lab_phase,
-    overall_utilization,
-)
-
-
 def _orders_multi(qty: int, order_id: str, lab: str = "L1") -> pd.DataFrame:
     df = _orders(qty=qty, lab=lab)
     df["order_id"] = order_id
@@ -195,15 +193,19 @@ def test_aggregate_detects_shared_overload() -> None:
 
 
 def test_overall_utilization_is_weighted_not_mean() -> None:
-    orders = pd.concat([
-        _orders_multi(qty=24, order_id=f"O{i}") for i in range(3)
-    ], ignore_index=True)
-    cap = compute_capacity_results(
-        orders, _product_matrix(avg=5.0), _labs(),
-        _phase_capacity(available_per_day=300.0, lab="L1"), planning_days=1,
-    )
-    agg = aggregate_lab_phase(cap)
-    assert overall_utilization(agg) == pytest.approx(360.0 / 300.0)
+    # Group A: required 100 / available 100 = 100%
+    # Group B: required 100 / available 900 = ~11%
+    # Mean of ratios = 55.5%. Weighted (ratio of sums) = 200/1000 = 20%.
+    # overall_utilization must return the WEIGHTED 20%, not 55.5%.
+    lab_phase = pd.DataFrame([
+        {"assigned_lab": "L1", "phase_name": "A", "total_required_minutes": 100.0,
+         "available_minutes": 100.0, "utilization_rate": 1.0,
+         "capacity_gap_minutes": 0.0, "is_overloaded": True, "num_orders": 1},
+        {"assigned_lab": "L1", "phase_name": "B", "total_required_minutes": 100.0,
+         "available_minutes": 900.0, "utilization_rate": 100.0 / 900.0,
+         "capacity_gap_minutes": 800.0, "is_overloaded": False, "num_orders": 1},
+    ])
+    assert overall_utilization(lab_phase) == pytest.approx(200.0 / 1000.0)
 
 
 def test_aggregate_empty_returns_empty() -> None:

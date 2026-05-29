@@ -127,12 +127,18 @@ def aggregate_lab_phase(capacity_results_df: pd.DataFrame) -> pd.DataFrame:
     Capacity is counted ONCE per (assigned_lab, phase_name) — `available_minutes`
     is identical across the orders that share a lab-phase, so we take its max.
     Required minutes are summed across all those orders.
+    Note: rows with phase_name == "<unknown product>" (placeholder for orders whose
+    product is not in the matrix) are excluded before aggregation.
     """
     if capacity_results_df.empty:
         return pd.DataFrame(columns=LAB_PHASE_LOAD_COLS)
 
+    work = capacity_results_df[capacity_results_df["phase_name"] != "<unknown product>"]
+    if work.empty:
+        return pd.DataFrame(columns=LAB_PHASE_LOAD_COLS)
+
     rows: list[dict] = []
-    for (lab, phase), g in capacity_results_df.groupby(["assigned_lab", "phase_name"]):
+    for (lab, phase), g in work.groupby(["assigned_lab", "phase_name"]):
         total_required = float(g["required_minutes"].sum())
         available = float(g["available_minutes"].max())
         if available <= 0:
