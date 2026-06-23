@@ -50,7 +50,7 @@ def render() -> None:
     stress = evaluate_all_stress(orders_scn, cap, labs_df, pc_scn, scenario, lab_phase_df=lab_phase)
     op_recs = generate_recommendations(cap, stress, orders_scn, pc_scn, pm_df)
 
-    econ_df = compute_economic_results(cap, orders_scn, pc_scn, pm_df, econ, labs_df=labs_df, operational_recs_df=op_recs)
+    econ_df = compute_economic_results(cap, orders_scn, pc_scn, pm_df, econ, labs_df=labs_df, operational_recs_df=op_recs, planning_days=planning_days)
 
     if econ_df.empty:
         st.info("No economic results — load data on the Upload page.")
@@ -111,7 +111,8 @@ def render() -> None:
     # --- Cost vs risk chart (current vs alternative) ---
     st.subheader("Cost vs operational risk")
     util_lookup = (
-        lab_phase.groupby("assigned_lab")["utilization_rate"]
+        lab_phase.assign(_lab=lab_phase["assigned_lab"].astype(str))
+        .groupby("_lab")["utilization_rate"]
         .max().replace([math.inf], 1.5).to_dict()
         if not lab_phase.empty else {}
     )

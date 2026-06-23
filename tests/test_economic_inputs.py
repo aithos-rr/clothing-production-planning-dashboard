@@ -47,3 +47,10 @@ def test_falls_back_to_config_when_no_sheet():
     assert ei.overhead_pct("ANY") == 0.10
     assert ei.setup_cost("ANY") == 0.0
     assert ei.overtime_multiplier("ANY") == 1.25
+
+
+def test_uses_default_true_when_sheet_present_but_no_usable_columns():
+    bad = pd.DataFrame({"order_id": ["ORD-1"], "lab": ["L1"], "hourly_cost": [22.0]})  # wrong header names
+    ei = load_economic_inputs({"economic_layer": bad})
+    assert ei.uses_default is True
+    assert ei.hourly_cost("L1") == 18.0  # config default

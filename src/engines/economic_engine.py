@@ -15,12 +15,14 @@ from src.engines.lab_allocation_engine import find_alternative_lab
 from src.parsers.economic_inputs import EconomicInputs
 from src.utils.config import get_default
 from src.utils.constants import (
+    CRITICAL_UTILIZATION_THRESHOLD,
     ECON_ACCEPT,
     ECON_ACCEPT_OVERTIME,
     ECON_POSTPONE,
     ECON_REALLOCATE,
     ECON_REJECT,
     EVENT_DEADLINE_INFEASIBLE,
+    REC_POSTPONE,
     REC_REJECT,
 )
 
@@ -91,6 +93,35 @@ def _available_hours_for_order(group: pd.DataFrame) -> float:
     return sum(vals) / 60.0 if vals else 0.0
 
 
+def _lab_available_hours(
+    phase_capacity_df: pd.DataFrame,
+    product_matrix_df: pd.DataFrame,
+    lab_id: str,
+    product_type: str,
+    planning_days: int,
+) -> float:
+    """Available hours for a lab across the product's phases (its OWN capacity).
+
+    Mirrors the capacity engine: available_minutes_per_day summed over the
+    product's phases for `lab_id`, scaled by planning_days, converted to hours.
+    """
+    if phase_capacity_df is None or phase_capacity_df.empty or product_matrix_df is None or product_matrix_df.empty:
+        return 0.0
+    phases = (
+        product_matrix_df[product_matrix_df["product_type"] == product_type]["phase_name"]
+        .dropna().unique().tolist()
+    )
+    if not phases:
+        return 0.0
+    rows = phase_capacity_df[
+        (phase_capacity_df["lab_id"].astype(str) == str(lab_id))
+        & (phase_capacity_df["phase_name"].isin(phases))
+    ]
+    if rows.empty:
+        return 0.0
+    return float(rows["available_minutes_per_day"].sum()) * float(planning_days) / 60.0
+
+
 def compute_economic_results(
     capacity_results_df: pd.DataFrame,
     orders_df: pd.DataFrame,
@@ -99,6 +130,7 @@ def compute_economic_results(
     econ: EconomicInputs,
     labs_df: pd.DataFrame | None = None,
     operational_recs_df: pd.DataFrame | None = None,
+    planning_days: int = 5,
 ) -> pd.DataFrame:
     if capacity_results_df is None or capacity_results_df.empty:
         return pd.DataFrame(columns=ECONOMIC_RESULTS_COLS)
@@ -133,8 +165,11 @@ def compute_economic_results(
             if order_row is not None else None
         )
         if alt_lab:
+            alt_available_hours = _lab_available_hours(
+                phase_capacity_df, product_matrix_df, alt_lab, product_type, planning_days
+            )
             _, _, _, _, _, alt_total = _order_cost_on_lab(
-                required_hours, available_hours, alt_lab, product_type, str(order_id), econ,
+                required_hours, alt_available_hours, alt_lab, product_type, str(order_id), econ,
                 _overtime_allowed_for_lab(labs_df, alt_lab),
             )
             cost_delta = alt_total - total
@@ -148,7 +183,7 @@ def compute_economic_results(
             (op_rec == REC_REJECT)
             or (~group["utilization_rate"].apply(math.isfinite)).any()
         )
-        has_deadline_issue = op_rec in {"POSTPONE"} or (group["utilization_rate"].replace([math.inf], 9e9) > 1.0).any()
+        has_deadline_issue = op_rec in {REC_POSTPONE} or (group["utilization_rate"].replace([math.inf], 9e9) > CRITICAL_UTILIZATION_THRESHOLD).any()
 
         # ---- Decision tree (5 cost-driven types) ----
         if infeasible and not alt_lab:
@@ -156,7 +191,10 @@ def compute_economic_results(
             reason = "Operationally infeasible and no alternative lab with capacity."
         elif exc > 0 and has_deadline_issue:
             rec = ECON_POSTPONE
-            reason = f"Overtime of {exc:.1f}h required to hit the deadline; postponing avoids the premium."
+            if ot_allowed:
+                reason = f"Overtime of {exc:.1f}h required to hit the deadline; postponing avoids the premium."
+            else:
+                reason = f"Required hours exceed capacity by {exc:.1f}h and this lab cannot use overtime; postpone to avoid infeasibility."
         elif exc > 0 and ot_allowed and not (alt_lab and cost_delta <= -threshold):
             rec = ECON_ACCEPT_OVERTIME
             reason = f"Overtime of {exc:.1f}h required (+€{ot:,.0f}); lab permits overtime."

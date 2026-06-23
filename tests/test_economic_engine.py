@@ -133,3 +133,29 @@ def test_reason_never_empty():
     ei = EconomicInputs(uses_default=True)
     res = compute_economic_results(_cap_one_order(), _orders_one(), _pc_two_labs(), _pm_one(), ei, labs_df=None, operational_recs_df=None)
     assert isinstance(res.iloc[0]["economic_reason"], str) and res.iloc[0]["economic_reason"]
+
+
+def test_alternative_cost_uses_alt_lab_own_capacity():
+    # Current lab L1 capacity-starved (overtime), alt lab L2 ample -> alt avoids phantom overtime.
+    cap = pd.DataFrame([
+        {"order_id": "O1", "assigned_lab": "L1", "product_type": "Giacca", "phase_name": "p1",
+         "quantity": 100, "required_minutes": 12000.0, "available_minutes": 3000.0,
+         "utilization_rate": 4.0, "capacity_gap_minutes": -9000.0, "is_overloaded": True, "is_bottleneck": True},
+    ])
+    orders = pd.DataFrame([{"order_id": "O1", "assigned_lab": "L1", "product_type": "Giacca", "quantity": 100}])
+    pc = pd.DataFrame([
+        {"lab_id": "L1", "phase_name": "p1", "available_minutes_per_day": 600.0},    # *5d=3000min=50h
+        {"lab_id": "L2", "phase_name": "p1", "available_minutes_per_day": 6000.0},   # *5d=30000min=500h ample
+    ])
+    pm = pd.DataFrame([{"product_type": "Giacca", "phase_name": "p1", "avg_time_minutes": 120.0, "setup_time_minutes": 0.0, "phase_order": 1}])
+    labs = pd.DataFrame([
+        {"lab_id": "L1", "overtime_allowed": True},
+        {"lab_id": "L2", "overtime_allowed": True},
+    ])
+    ei = EconomicInputs(_hourly={"L1": 20.0, "L2": 20.0}, _overtime={"L1": 1.5, "L2": 1.5}, uses_default=False)
+    res = compute_economic_results(cap, orders, pc, pm, ei, labs_df=labs, operational_recs_df=None, planning_days=5)
+    row = res.iloc[0]
+    # current lab incurs overtime; alternative lab has ample capacity -> materially cheaper
+    assert row["overtime_cost"] > 0
+    assert row["alternative_total_cost"] < row["total_estimated_cost"]
+    assert row["cost_delta_if_reallocated"] < -100  # real saving surfaced (was ~0 before the fix)

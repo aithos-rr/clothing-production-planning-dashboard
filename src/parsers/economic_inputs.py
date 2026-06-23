@@ -59,6 +59,7 @@ def load_economic_inputs(raw: dict[str, pd.DataFrame]) -> EconomicInputs:
 
     df = sheet.copy()
     df.columns = [str(c).strip().lower() for c in df.columns]
+    df = df.loc[:, ~df.columns.duplicated()]
 
     hourly: dict[str, float] = {}
     overtime: dict[str, float] = {}
@@ -98,12 +99,13 @@ def load_economic_inputs(raw: dict[str, pd.DataFrame]) -> EconomicInputs:
             if sc is not None:
                 setup[str(oid)] = sc
 
+    sourced = bool(hourly or overtime or overhead or setup)
     return EconomicInputs(
         _hourly=hourly,
         _overtime=overtime,
         _overhead=overhead,
         _setup=setup,
-        uses_default=False,
+        uses_default=not sourced,
     )
 
 
