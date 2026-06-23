@@ -41,6 +41,7 @@ what you want to demo:
 |---|---|---|---|
 | `data/sample/sample_planning.xlsx` | 5 orders · 2 products · 2 labs | Tiny synthetic demo | Sanity-check the UI without any setup. Loaded automatically by the **"Use demo data"** toggle. |
 | `data/sample/clothing_production_planning_database_cleaned.xlsx` | 60 orders · 16 products · 10 labs · 373 phase-capacity rows | Realistic test database | Stress-test the dashboard with production-like volumes (bottlenecks, REJECT/SPLIT recommendations, late deadlines). |
+| `data/sample/clothing_production_planning_database_with_economic_layer.xlsx` | 60 orders · 10 labs · 373 phase-capacity rows · `economic_layer` sheet | Economic-layer dataset (v2) | Drives the **Cost Feasibility Dashboard**: per-lab hourly cost, per-product overhead, per-order setup, used to estimate production cost and reallocation impact. |
 
 ## How to load data (3 ways)
 
@@ -81,6 +82,7 @@ the labs sheet are auto-created with the defaults in `config/defaults.yaml`
         TASKS.md
         PRESENTATION_AUDIT.md
         CLOUD_CODE_MASTER_PROMPT.md
+        PRD_ECONOMIC_LAYER_v2.md
 
     /data
         /sample
@@ -93,6 +95,7 @@ the labs sheet are auto-created with the defaults in `config/defaults.yaml`
         /parsers
             excel_parser.py
             normalizer.py
+            economic_inputs.py
 
         /engines
             product_matrix_engine.py
@@ -103,6 +106,7 @@ the labs sheet are auto-created with the defaults in `config/defaults.yaml`
             recommendation_engine.py
             timeline_engine.py
             scenario_engine.py
+            economic_engine.py
 
         /components
             kpi_cards.py
@@ -118,6 +122,7 @@ the labs sheet are auto-created with the defaults in `config/defaults.yaml`
                 phase_saturation.py
                 timeline.py
                 scenario_testing.py
+                cost_feasibility.py
                 future_ai.py
 
         /utils
@@ -159,6 +164,25 @@ On-screen KPIs (overall utilization, minimum capacity gap, overloaded phases,
 most critical phase) come from the **aggregate** level. This prevents the
 capacity of a shared phase from being double-counted across orders — the bug
 that previously inflated the total-gap KPI into the tens of thousands of hours.
+
+## Economic layer (Cost Feasibility Dashboard, v2)
+
+A dedicated **Cost Feasibility Dashboard** page adds an economic view on top of the
+operational pipeline. It is **cost-focused** (margin/profitability are intentionally
+out of scope) and answers: *"the order is feasible — but what does it cost, and
+should it move?"*
+
+- `required_hours` is derived from the dashboard's own capacity engine, so the
+  economic layer stays consistent with capacity/stress/timeline and reacts to
+  scenarios.
+- Economic inputs (per-lab hourly cost & overtime multiplier, per-product overhead %,
+  per-order setup cost) are sourced from an `economic_layer` sheet when the uploaded
+  workbook has one, otherwise from `config/defaults.yaml` (no hardcoded literals).
+- It estimates standard labour cost, overtime cost, overhead, total production cost,
+  and the **cost impact of reallocating** an order to an alternative lab, then emits a
+  5-type cost-driven economic recommendation
+  (ACCEPT / ACCEPT WITH OVERTIME / REALLOCATE / POSTPONE / REJECT) shown alongside the
+  operational recommendation.
 
 ## Deployment (Railway)
 

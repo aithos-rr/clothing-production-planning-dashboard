@@ -19,6 +19,8 @@
 
 **Forma.** Web app Python eseguita con `streamlit run app.py`. Nessun database: i dati vivono nella sessione utente dopo l'upload di un file `.xlsx`.
 
+**Novità v2 — Cost Feasibility Dashboard (economic layer).** Una nuova pagina aggiunge il livello economico: stima costo di produzione, costo di straordinario, overhead e l'impatto di costo di una riallocazione su un laboratorio alternativo, con una raccomandazione economica cost-driven (ACCEPT / ACCEPT WITH OVERTIME / REALLOCATE / POSTPONE / REJECT) affiancata a quella operativa. È **cost-focused**: margine/redditività sono volutamente fuori scope. I parametri economici provengono dalla sheet `economic_layer` del workbook quando presente, altrimenti dai default in `config/defaults.yaml`.
+
 ---
 
 ## 2. Audit critico del README

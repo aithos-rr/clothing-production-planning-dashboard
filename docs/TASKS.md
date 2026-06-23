@@ -1155,6 +1155,51 @@ DONE
 
 ---
 
+# PHASE 10 — Economic Layer (Cost Feasibility Dashboard, v2)
+
+> **Source of truth:** `docs/PRD_ECONOMIC_LAYER_v2.md` + design spec
+> `docs/superpowers/specs/2026-06-23-economic-layer-design.md` + plan
+> `docs/superpowers/plans/2026-06-23-economic-layer.md`.
+> Cost-focused layer: margin/profitability (PRD §8.9–8.11, KPI2, KPI3) intentionally
+> excluded. All numeric defaults live in `config/defaults.yaml` (0 hardcode).
+
+## TASK-042 — Economic config defaults + constants
+Append economic defaults to `config/defaults.yaml` (standard_hourly_cost, overtime_multiplier,
+fixed_setup_cost, overhead_percentage, currency, reallocation_material_threshold_eur) and
+the 5 economic recommendation labels to `src/utils/constants.py`. **Status:** TODO
+
+## TASK-043 — Extend demo data with an economic_layer sheet
+Add `_economic_layer_rows()` to `scripts/build_sample_data.py` and regenerate
+`data/sample/sample_planning.xlsx` with derived realistic economic values. **Status:** TODO
+
+## TASK-044 — Economic input loader
+Create `src/parsers/economic_inputs.py`: source per-lab/per-product/per-order economic
+params from the `economic_layer` sheet when present, else config defaults. **Status:** TODO
+
+## TASK-045 — Economic engine: pure formulas + golden test
+Create `src/engines/economic_engine.py` formula functions (labour, excess hours, overtime,
+overhead, total) validated to the cent against the workbook's `economic_layer`. **Status:** TODO
+
+## TASK-046 — compute_economic_results + 5-type recommendation
+Add `compute_economic_results` plugging into the live capacity pipeline + the cost-driven
+recommendation (ACCEPT / ACCEPT WITH OVERTIME / REALLOCATE / POSTPONE / REJECT). **Status:** TODO
+
+## TASK-047 — Cost-vs-Risk chart component
+Add `cost_vs_risk_scatter` to `src/components/charts.py`. **Status:** TODO
+
+## TASK-048 — Cost Feasibility page
+Create `src/ui/pages/cost_feasibility.py` (KPIs, cost breakdown, lab comparison,
+cost-vs-risk chart, economic alerts, combined operational+economic recommendation). **Status:** TODO
+
+## TASK-049 — Register page in nav + wire economic inputs
+Register the page in `app.py` (between Scenario Testing and Future AI Layer) and store
+`economic_inputs` in session via `src/ui/pages/upload.py`. **Status:** TODO
+
+## TASK-050 — Final verification + docs close-out
+Full suite green, app smoke test, docs finalized, tag `v2`. **Status:** TODO
+
+---
+
 # Loop-Compatible Iteration Protocol
 
 For AI agents executing this file in iterative mode (Claude Code, Cloud Code, Ralf Loop):
