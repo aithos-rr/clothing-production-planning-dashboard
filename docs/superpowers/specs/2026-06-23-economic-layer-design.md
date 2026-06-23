@@ -64,12 +64,18 @@ Reused as-is: `kpi_row`/`kpi_card`, `render_alerts`, `find_alternative_lab`,
 1. Page runs the **live operational pipeline** (scenario → capacity → aggregate →
    bottleneck → stress → operational recommendation) exactly like Capacity
    Dashboard.
-2. `required_hours` for each order = `Σ required_minutes / 60` from
-   `capacity_results_df` (the dashboard's own truth), **not** the SMV column —
-   keeps the economic layer consistent and scenario-reactive.
-   *Documented caveat:* integrated totals differ slightly from the Excel's
-   `economic_layer` (which used SMV without per-phase setup). Expected and more
-   internally consistent.
+2. `required_hours` for each order uses the **standard-minutes-per-garment (SMV)
+   basis** when the workbook provides `planned_smv`: `required_hours =
+   quantity × SMV / 60`. SMV is the apparel-industry costing standard and makes
+   the dashboard's totals **reconcile with the source workbook** the company
+   validated (labour matches to the cent; total within ~0.1%). It stays
+   scenario-reactive because `quantity` is the scenario-adjusted value. When no
+   SMV is present (e.g. the synthetic demo), it falls back to the per-phase
+   capacity-engine hours (`Σ required_minutes / 60`).
+   *Decision (2026-06-23):* switched from per-phase to SMV after the live deploy
+   showed per-phase totals ~1.38× the validated Excel (the workbook's per-phase
+   `avg_time` sums exceed each style's SMV — a source-data discrepancy). SMV is
+   clearer for stakeholders and avoids "impossible-looking" figures.
 3. Economic input params come from the input loader (§5).
 4. `compute_economic_results` produces `economic_results_df` (§6).
 5. Page renders KPIs, breakdown, lab comparison, cost-vs-risk, alerts, and the

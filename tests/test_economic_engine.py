@@ -159,3 +159,49 @@ def test_alternative_cost_uses_alt_lab_own_capacity():
     assert row["overtime_cost"] > 0
     assert row["alternative_total_cost"] < row["total_estimated_cost"]
     assert row["cost_delta_if_reallocated"] < -100  # real saving surfaced (was ~0 before the fix)
+
+
+def test_required_hours_uses_smv_when_present():
+    # When the order carries a standard-minutes-per-garment value, required_hours
+    # = quantity * smv / 60 (apparel costing standard), NOT the per-phase sum.
+    cap = pd.DataFrame([
+        {"order_id": "O1", "assigned_lab": "L1", "product_type": "Giacca", "phase_name": "p1",
+         "quantity": 100, "required_minutes": 9999.0, "available_minutes": 100000.0,
+         "utilization_rate": 0.1, "capacity_gap_minutes": 90001.0, "is_overloaded": False, "is_bottleneck": True},
+    ])
+    orders = pd.DataFrame([{"order_id": "O1", "assigned_lab": "L1", "product_type": "Giacca", "quantity": 100}])
+    pc = pd.DataFrame([{"lab_id": "L1", "phase_name": "p1", "available_minutes_per_day": 5000.0}])
+    pm = pd.DataFrame([{"product_type": "Giacca", "phase_name": "p1", "avg_time_minutes": 30.0, "setup_time_minutes": 0.0, "phase_order": 1}])
+    ei = EconomicInputs(_hourly={"L1": 20.0}, _smv={"O1": 80.0}, uses_default=False)
+    res = compute_economic_results(cap, orders, pc, pm, ei, labs_df=None, operational_recs_df=None, planning_days=5)
+    assert round(res.iloc[0]["required_hours"], 2) == round(100 * 80 / 60, 2)
+
+
+def test_reconciles_with_workbook_total_when_smv_present():
+    """End-to-end: with the workbook's SMV, dashboard labour matches the workbook
+    economic_layer exactly and the total estimated cost is within 1%."""
+    from src.parsers.excel_parser import parse_excel
+    from src.parsers.normalizer import normalize_all
+    from src.parsers.economic_inputs import load_economic_inputs
+    from src.engines.scenario_engine import ScenarioInputs, apply_scenario
+    from src.engines.capacity_engine import compute_capacity_results, aggregate_lab_phase
+    from src.engines.bottleneck_engine import identify_bottlenecks
+    from src.engines.stress_engine import evaluate_all_stress
+    from src.engines.recommendation_engine import generate_recommendations
+
+    P = "data/sample/clothing_production_planning_database_with_economic_layer.xlsx"
+    raw = parse_excel(P)
+    d = normalize_all(raw)
+    ei = load_economic_inputs(raw)
+    o, pc = apply_scenario(d["orders"], d["phase_capacity"], ScenarioInputs())
+    cap = compute_capacity_results(o, d["product_matrix"], d["labs"], pc, planning_days=5)
+    lp = aggregate_lab_phase(cap)
+    cap, _ = identify_bottlenecks(cap, lp)
+    stress = evaluate_all_stress(o, cap, d["labs"], pc, ScenarioInputs(), lab_phase_df=lp)
+    recs = generate_recommendations(cap, stress, o, pc, d["product_matrix"])
+    econ = compute_economic_results(cap, o, pc, d["product_matrix"], ei, labs_df=d["labs"], operational_recs_df=recs, planning_days=5)
+    el = pd.read_excel(P, sheet_name="economic_layer")
+    el = el.loc[:, ~el.columns.str.startswith("Unnamed")]
+    assert round(econ["standard_labour_cost"].sum(), 0) == round(el["standard_labour_cost_eur"].sum(), 0)
+    ratio = econ["total_estimated_cost"].sum() / el["total_estimated_cost_eur"].sum()
+    assert 0.98 <= ratio <= 1.02

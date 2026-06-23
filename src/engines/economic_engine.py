@@ -149,7 +149,15 @@ def compute_economic_results(
         lab = str(group["assigned_lab"].iloc[0])
         product_type = str(group["product_type"].iloc[0])
         quantity = int(group["quantity"].iloc[0]) if "quantity" in group else 0
-        required_hours = float(group["required_minutes"].sum()) / 60.0
+        # Prefer the standard-minutes-per-garment (SMV) basis when the workbook
+        # provides it: required_hours = quantity * smv / 60. This is the apparel
+        # costing standard and reconciles with the source workbook's economics.
+        # Falls back to the per-phase capacity-engine hours when no SMV is given.
+        smv = econ.smv(order_id)
+        if smv is not None and smv > 0:
+            required_hours = quantity * float(smv) / 60.0
+        else:
+            required_hours = float(group["required_minutes"].sum()) / 60.0
         available_hours = _available_hours_for_order(group)
         ot_allowed = _overtime_allowed_for_lab(labs_df, lab)
 

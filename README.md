@@ -172,9 +172,11 @@ operational pipeline. It is **cost-focused** (margin/profitability are intention
 out of scope) and answers: *"the order is feasible — but what does it cost, and
 should it move?"*
 
-- `required_hours` is derived from the dashboard's own capacity engine, so the
-  economic layer stays consistent with capacity/stress/timeline and reacts to
-  scenarios.
+- `required_hours` uses the standard-minutes-per-garment (SMV) basis
+  (`quantity × planned_smv / 60`) when the workbook provides it — the apparel
+  costing standard, so the dashboard's cost figures reconcile with the source
+  workbook. It stays scenario-reactive (quantity scales) and falls back to the
+  capacity engine's per-phase hours when no SMV is present (e.g. the demo).
 - Economic inputs (per-lab hourly cost & overtime multiplier, per-product overhead %,
   per-order setup cost) are sourced from an `economic_layer` sheet when the uploaded
   workbook has one, otherwise from `config/defaults.yaml` (no hardcoded literals).

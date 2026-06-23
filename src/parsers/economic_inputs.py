@@ -22,6 +22,7 @@ class EconomicInputs:
     _overtime: dict[str, float] = field(default_factory=dict)
     _overhead: dict[str, float] = field(default_factory=dict)
     _setup: dict[str, float] = field(default_factory=dict)
+    _smv: dict[str, float] = field(default_factory=dict)
     uses_default: bool = True
 
     # Config fallbacks (read once)
@@ -41,6 +42,15 @@ class EconomicInputs:
 
     def setup_cost(self, order_id) -> float:
         return float(self._setup.get(str(order_id), self._def_setup))
+
+    def smv(self, order_id) -> float | None:
+        """Standard minutes per garment for an order, or None if not provided.
+
+        When present, the economic engine derives required_hours as
+        `quantity * smv / 60` (the apparel-standard costing basis, which
+        reconciles with the source workbook), instead of summing per-phase times.
+        """
+        return self._smv.get(str(order_id))
 
 
 def _find_econ_sheet(raw: dict[str, pd.DataFrame]) -> pd.DataFrame | None:
@@ -65,6 +75,7 @@ def load_economic_inputs(raw: dict[str, pd.DataFrame]) -> EconomicInputs:
     overtime: dict[str, float] = {}
     overhead: dict[str, float] = {}
     setup: dict[str, float] = {}
+    smv: dict[str, float] = {}
 
     def _num(v):
         try:
@@ -98,6 +109,9 @@ def load_economic_inputs(raw: dict[str, pd.DataFrame]) -> EconomicInputs:
             sc = _num(row.get("setup_cost_eur"))
             if sc is not None:
                 setup[str(oid)] = sc
+            sv = _num(row.get("planned_smv"))
+            if sv is not None and sv > 0:
+                smv[str(oid)] = sv
 
     sourced = bool(hourly or overtime or overhead or setup)
     return EconomicInputs(
@@ -105,6 +119,7 @@ def load_economic_inputs(raw: dict[str, pd.DataFrame]) -> EconomicInputs:
         _overtime=overtime,
         _overhead=overhead,
         _setup=setup,
+        _smv=smv,
         uses_default=not sourced,
     )
 
