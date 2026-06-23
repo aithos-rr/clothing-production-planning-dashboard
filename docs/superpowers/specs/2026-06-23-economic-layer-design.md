@@ -168,6 +168,14 @@ utilization ∞ handled), unknown-product orders excluded from aggregation.
 Missing data shows warnings, never breaks the page (top-level try/except already
 in `app.py`).
 
+**Known limitation (minor):** if a user uploads a workbook that contains an
+`economic_layer` sheet but is *missing* the `orders`/`product_matrix` sheets, the
+operational pipeline falls back to the bundled sample sheets (Mode B) while the
+economic inputs remain keyed to the uploaded sheet — per-order/per-product economic
+lookups then miss and fall back to config defaults. This degrades gracefully (the
+page renders demo data without error). The pre-existing silent mock-substitution is
+the root cause; surfacing `used_mock` on the Upload page is deferred.
+
 ## 11. Testing
 
 `tests/test_economic_engine.py`:

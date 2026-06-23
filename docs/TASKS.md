@@ -1166,37 +1166,37 @@ DONE
 ## TASK-042 — Economic config defaults + constants
 Append economic defaults to `config/defaults.yaml` (standard_hourly_cost, overtime_multiplier,
 fixed_setup_cost, overhead_percentage, currency, reallocation_material_threshold_eur) and
-the 5 economic recommendation labels to `src/utils/constants.py`. **Status:** TODO
+the 5 economic recommendation labels to `src/utils/constants.py`. **Status:** DONE
 
 ## TASK-043 — Extend demo data with an economic_layer sheet
 Add `_economic_layer_rows()` to `scripts/build_sample_data.py` and regenerate
-`data/sample/sample_planning.xlsx` with derived realistic economic values. **Status:** TODO
+`data/sample/sample_planning.xlsx` with derived realistic economic values. **Status:** DONE
 
 ## TASK-044 — Economic input loader
 Create `src/parsers/economic_inputs.py`: source per-lab/per-product/per-order economic
-params from the `economic_layer` sheet when present, else config defaults. **Status:** TODO
+params from the `economic_layer` sheet when present, else config defaults. **Status:** DONE
 
 ## TASK-045 — Economic engine: pure formulas + golden test
 Create `src/engines/economic_engine.py` formula functions (labour, excess hours, overtime,
-overhead, total) validated to the cent against the workbook's `economic_layer`. **Status:** TODO
+overhead, total) validated to the cent against the workbook's `economic_layer`. **Status:** DONE
 
 ## TASK-046 — compute_economic_results + 5-type recommendation
 Add `compute_economic_results` plugging into the live capacity pipeline + the cost-driven
-recommendation (ACCEPT / ACCEPT WITH OVERTIME / REALLOCATE / POSTPONE / REJECT). **Status:** TODO
+recommendation (ACCEPT / ACCEPT WITH OVERTIME / REALLOCATE / POSTPONE / REJECT). **Status:** DONE
 
 ## TASK-047 — Cost-vs-Risk chart component
-Add `cost_vs_risk_scatter` to `src/components/charts.py`. **Status:** TODO
+Add `cost_vs_risk_scatter` to `src/components/charts.py`. **Status:** DONE
 
 ## TASK-048 — Cost Feasibility page
 Create `src/ui/pages/cost_feasibility.py` (KPIs, cost breakdown, lab comparison,
-cost-vs-risk chart, economic alerts, combined operational+economic recommendation). **Status:** TODO
+cost-vs-risk chart, economic alerts, combined operational+economic recommendation). **Status:** DONE
 
 ## TASK-049 — Register page in nav + wire economic inputs
 Register the page in `app.py` (between Scenario Testing and Future AI Layer) and store
-`economic_inputs` in session via `src/ui/pages/upload.py`. **Status:** TODO
+`economic_inputs` in session via `src/ui/pages/upload.py`. **Status:** DONE
 
 ## TASK-050 — Final verification + docs close-out
-Full suite green, app smoke test, docs finalized, tag `v2`. **Status:** TODO
+Full suite green, app smoke test, docs finalized, tag `v2`. **Status:** DONE
 
 ---
 
