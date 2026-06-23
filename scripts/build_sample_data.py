@@ -87,6 +87,24 @@ def _phase_capacity_rows() -> list[list]:
     return [header] + rows
 
 
+def _economic_layer_rows() -> list[list]:
+    # Per-lab hourly cost & overtime multiplier; per-product overhead %; per-order setup.
+    # Derived demo values (L1 cheaper than L2 for Giacca-heavy load; differentiated).
+    header = [
+        "order_id", "assigned_lab", "product_type",
+        "standard_hourly_cost_eur", "overtime_multiplier",
+        "overhead_pct", "setup_cost_eur",
+    ]
+    rows: list[list] = [
+        ["ORD-0001", "L1", "Giacca",    18.0, 1.25, 0.10, 120.0],
+        ["ORD-0002", "L1", "Pantalone", 18.0, 1.25, 0.12,  80.0],
+        ["ORD-0003", "L2", "Giacca",    21.5, 1.30, 0.10, 150.0],
+        ["ORD-0004", "L2", "Pantalone", 21.5, 1.30, 0.12,  60.0],
+        ["ORD-0005", "L1", "Giacca",    18.0, 1.25, 0.10, 100.0],
+    ]
+    return [header] + rows
+
+
 def build_workbook(out_path: Path = OUTPUT) -> Path:
     wb = Workbook()
     # Default sheet → rename to "orders"
@@ -99,6 +117,7 @@ def build_workbook(out_path: Path = OUTPUT) -> Path:
         ("product_matrix", _product_matrix_rows()),
         ("labs",            _labs_rows()),
         ("phase_capacity",  _phase_capacity_rows()),
+        ("economic_layer",  _economic_layer_rows()),
     ):
         ws = wb.create_sheet(name)
         for r in rows:

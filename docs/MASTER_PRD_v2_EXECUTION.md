@@ -27,6 +27,17 @@ It is a **fashion manufacturing operational planning tool** that transforms frag
 
 ---
 
+# 0.1 Economic Layer (v2 addition)
+
+A **Cost Feasibility Dashboard** (economic layer) is added on top of this operational
+MVP. It is **cost-focused** — it estimates production cost, overtime cost, overhead and
+the cost impact of reallocation, and emits a cost-driven economic recommendation that
+complements (does not replace) the operational recommendation. Margin/profitability
+metrics are intentionally excluded from this version. See `docs/PRD_ECONOMIC_LAYER_v2.md`
+and the design spec/plan under `docs/superpowers/`.
+
+---
+
 # 1. Product Vision
 
 ## 1.1 Vision

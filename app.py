@@ -21,6 +21,7 @@ import streamlit as st
 from src.engines.scenario_engine import ScenarioInputs
 from src.ui.pages import (
     capacity_dashboard,
+    cost_feasibility,
     future_ai,
     overview,
     phase_saturation,
@@ -42,6 +43,7 @@ PAGES: dict[str, callable] = {
     "Phase Saturation": phase_saturation.render,
     "Timeline": timeline_page.render,
     "Scenario Testing": scenario_testing.render,
+    "Cost Feasibility Dashboard": cost_feasibility.render,
     "Future AI Layer": future_ai.render,
 }
 
@@ -51,6 +53,7 @@ _DATA_GATED_PAGES = {
     "Phase Saturation",
     "Timeline",
     "Scenario Testing",
+    "Cost Feasibility Dashboard",
 }
 
 

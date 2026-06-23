@@ -6,6 +6,7 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
+from src.parsers.economic_inputs import load_economic_inputs
 from src.parsers.excel_parser import ExcelParseError, parse_excel
 from src.parsers.normalizer import normalize_all
 from src.utils.constants import SEVERITY_HIGH, SEVERITY_LOW, SEVERITY_MEDIUM
@@ -30,6 +31,7 @@ def _render_warnings(warnings: list) -> None:
 
 def _ingest(raw_sheets: dict[str, pd.DataFrame], used_mock_marker: str | None = None) -> None:
     result = normalize_all(raw_sheets, use_mock_fallback=True)
+    result["economic_inputs"] = load_economic_inputs(raw_sheets)
     st.session_state["data"] = result
     if used_mock_marker:
         st.success(f"Loaded demo dataset: {used_mock_marker}")
