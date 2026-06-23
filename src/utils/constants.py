@@ -60,3 +60,23 @@ TIMELINE_ON_TRACK: str = "on_track"
 TIMELINE_AT_RISK: str = "at_risk"
 TIMELINE_LATE: str = "late"
 TIMELINE_BLOCKED: str = "blocked"  # a required phase has no defined capacity
+
+# --- Economic recommendation labels (v2, cost-driven) ---
+ECON_ACCEPT: str = "ACCEPT"
+ECON_ACCEPT_OVERTIME: str = "ACCEPT WITH OVERTIME"
+ECON_REALLOCATE: str = "REALLOCATE"
+ECON_POSTPONE: str = "POSTPONE"
+ECON_REJECT: str = "REJECT"
+
+ALL_ECON_RECOMMENDATIONS: tuple[str, ...] = (
+    ECON_ACCEPT,
+    ECON_ACCEPT_OVERTIME,
+    ECON_REALLOCATE,
+    ECON_POSTPONE,
+    ECON_REJECT,
+)
+
+# Economic status for cost cards
+ECON_STATUS_OK: str = "safe"
+ECON_STATUS_WATCH: str = "at_risk"
+ECON_STATUS_BAD: str = "critical"

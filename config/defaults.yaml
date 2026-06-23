@@ -9,3 +9,11 @@ phase_stress_threshold: 0.90
 max_parallel_orders_per_lab: 2
 max_weekly_hours: 48
 overtime_allowed: false
+
+# --- Economic layer (v2) defaults ---
+standard_hourly_cost: 18.0
+overtime_multiplier: 1.25
+fixed_setup_cost: 0.0
+overhead_percentage: 0.10
+currency: "EUR"
+reallocation_material_threshold_eur: 500.0
