@@ -71,3 +71,65 @@ def test_golden_reproduces_workbook_to_the_cent():
         assert round(oh, 2) == round(float(r["overhead_cost_eur"]), 2)
         checked += 1
     assert checked == 60
+
+
+from src.engines.economic_engine import compute_economic_results
+from src.parsers.economic_inputs import EconomicInputs
+
+
+def _cap_one_order(util=0.5, available_minutes=10000.0, required_minutes=5000.0, lab="L1"):
+    return pd.DataFrame([
+        {"order_id": "O1", "assigned_lab": lab, "product_type": "Giacca",
+         "phase_name": "p1", "quantity": 100, "required_minutes": required_minutes,
+         "available_minutes": available_minutes, "utilization_rate": util,
+         "capacity_gap_minutes": available_minutes - required_minutes,
+         "is_overloaded": util > 0.85, "is_bottleneck": True},
+    ])
+
+
+def _orders_one(lab="L1"):
+    return pd.DataFrame([{"order_id": "O1", "assigned_lab": lab, "product_type": "Giacca", "quantity": 100}])
+
+
+def _pc_two_labs():
+    return pd.DataFrame([
+        {"lab_id": "L1", "phase_name": "p1", "available_minutes_per_day": 2000.0, "overtime_allowed": False},
+        {"lab_id": "L2", "phase_name": "p1", "available_minutes_per_day": 2000.0, "overtime_allowed": False},
+    ])
+
+
+def _pm_one():
+    return pd.DataFrame([{"product_type": "Giacca", "phase_name": "p1", "avg_time_minutes": 50.0, "setup_time_minutes": 0.0, "phase_order": 1}])
+
+
+def test_compute_economic_results_basic_schema():
+    ei = EconomicInputs(uses_default=True)
+    res = compute_economic_results(_cap_one_order(), _orders_one(), _pc_two_labs(), _pm_one(), ei, labs_df=None, operational_recs_df=None)
+    assert list(res.columns)[:4] == ["order_id", "assigned_lab", "product_type", "quantity"]
+    row = res.iloc[0]
+    assert row["required_hours"] == 5000.0 / 60.0
+    # labour = required_hours * 18 (default); total includes overhead 10%
+    assert round(row["total_estimated_cost"], 2) > 0
+    assert row["economic_recommendation"] in {"ACCEPT", "REALLOCATE", "ACCEPT WITH OVERTIME", "POSTPONE", "REJECT"}
+
+
+def test_reallocate_when_alternative_materially_cheaper():
+    # L1 expensive (30/h), L2 cheap (10/h) -> delta well below -500
+    ei = EconomicInputs(_hourly={"L1": 30.0, "L2": 10.0}, uses_default=False)
+    res = compute_economic_results(_cap_one_order(lab="L1"), _orders_one("L1"), _pc_two_labs(), _pm_one(), ei, labs_df=None, operational_recs_df=None)
+    row = res.iloc[0]
+    assert row["alternative_lab"] == "L2"
+    assert row["cost_delta_if_reallocated"] < 0
+    assert row["economic_recommendation"] == "REALLOCATE"
+
+
+def test_accept_when_no_cheaper_alternative_and_no_overtime():
+    ei = EconomicInputs(_hourly={"L1": 10.0, "L2": 30.0}, uses_default=False)
+    res = compute_economic_results(_cap_one_order(lab="L1"), _orders_one("L1"), _pc_two_labs(), _pm_one(), ei, labs_df=None, operational_recs_df=None)
+    assert res.iloc[0]["economic_recommendation"] == "ACCEPT"
+
+
+def test_reason_never_empty():
+    ei = EconomicInputs(uses_default=True)
+    res = compute_economic_results(_cap_one_order(), _orders_one(), _pc_two_labs(), _pm_one(), ei, labs_df=None, operational_recs_df=None)
+    assert isinstance(res.iloc[0]["economic_reason"], str) and res.iloc[0]["economic_reason"]
