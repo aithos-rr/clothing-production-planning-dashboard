@@ -117,4 +117,31 @@ def lab_phase_capacity_gap_bar(lab_phase_df: pd.DataFrame) -> go.Figure:
     return fig
 
 
-__all__ = ["phase_utilization_bar", "lab_phase_capacity_gap_bar"]
+def cost_vs_risk_scatter(df: pd.DataFrame) -> go.Figure:
+    """Scatter of estimated cost (x) vs utilization/operational risk (y).
+
+    Each point is a lab or allocation scenario. Color by utilization status.
+    """
+    if df is None or df.empty:
+        return _empty_figure("No cost/risk data yet")
+    work = df.copy()
+    colors = [STATUS_COLORS[utilization_status(v)] for v in work["utilization"].values]
+    fig = go.Figure(
+        go.Scatter(
+            x=work["estimated_cost"].values,
+            y=work["utilization"].values,
+            mode="markers+text",
+            text=work["label"].astype(str).values,
+            textposition="top center",
+            marker=dict(size=14, color=colors),
+            hovertemplate="%{text}<br>cost €%{x:,.0f}<br>util %{y:.0%}<extra></extra>",
+        )
+    )
+    fig.add_hline(y=CRITICAL_UTILIZATION_THRESHOLD, line=dict(color="#9CA3AF", width=1, dash="dash"))
+    fig = _base_layout(fig, title="Cost vs operational risk")
+    fig.update_yaxes(tickformat=".0%")
+    fig.update_xaxes(title="Estimated cost (€)")
+    return fig
+
+
+__all__ = ["phase_utilization_bar", "lab_phase_capacity_gap_bar", "cost_vs_risk_scatter"]
