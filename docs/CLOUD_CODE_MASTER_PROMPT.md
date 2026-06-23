@@ -7,16 +7,17 @@ You are working on an operational planning dashboard MVP for fashion manufacturi
 Read and strictly follow:
 
 ```text
-MASTER_PRD.md
+docs/MASTER_PRD_v2_EXECUTION.md
+docs/PRD_ECONOMIC_LAYER_v2.md
 ```
 
 and:
 
 ```text
-TASKS.md
+docs/TASKS.md
 ```
 
-The PRD is the single source of truth.
+The PRDs are the single source of truth.
 
 ---
 

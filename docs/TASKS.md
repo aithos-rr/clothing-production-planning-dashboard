@@ -1200,6 +1200,28 @@ Full suite green, app smoke test, docs finalized, tag `v2`. **Status:** DONE
 
 ---
 
+# PHASE 11 — V3 (UI/UX overhaul, planned)
+
+> Not started. V3 keeps V2's data and logic and focuses entirely on
+> presentation: turn the functional prototype into a product usable by sector
+> companies. Scope (to be broken into tasks when V3 starts):
+> - consistent professional design system across all pages (typography, spacing,
+>   color, components);
+> - first-class UX (navigation, defaults, flows; easy for non-technical managers);
+> - better/uniform charts (consistent legends, color semantics, data previews,
+>   self-explanatory labels);
+> - coherent, legible data/KPIs across every page.
+
+## TASK-051 — V3 design system + UI/UX overhaul
+Define and apply a professional, consistent design system and improve UX across
+all pages. **Status:** TODO
+
+## TASK-052 — V3 chart & data-readability pass
+Uniform legends, consistent color semantics, data previews/tooltips, legible KPIs
+on every page. **Status:** TODO
+
+---
+
 # Loop-Compatible Iteration Protocol
 
 For AI agents executing this file in iterative mode (Claude Code, Cloud Code, Ralf Loop):

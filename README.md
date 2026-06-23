@@ -83,6 +83,9 @@ the labs sheet are auto-created with the defaults in `config/defaults.yaml`
         PRESENTATION_AUDIT.md
         CLOUD_CODE_MASTER_PROMPT.md
         PRD_ECONOMIC_LAYER_v2.md
+        /superpowers
+            /specs    (design specs)
+            /plans    (implementation plans)
 
     /data
         /sample
@@ -139,8 +142,14 @@ the labs sheet are auto-created with the defaults in `config/defaults.yaml`
 
     /tests
         test_capacity_engine.py
+        test_aggregate_capacity.py
         test_recommendation_engine.py
+        test_stress_engine.py
+        test_timeline_engine.py
         test_normalizer.py
+        test_economic_engine.py
+        test_economic_inputs.py
+        test_charts_economic.py
 ```
 
 ## Configuration
@@ -208,6 +217,24 @@ The following are intentionally **not** part of the MVP:
 - production-grade access control
 - multi-tenant SaaS architecture
 - real legal compliance engine
+
+## Roadmap — V3 (UI/UX overhaul)
+
+V2 delivered the full functional surface (operational + economic layers) with
+correct, reconciled data. **V3 turns it into a product genuinely usable by
+companies in the sector** — same data and logic, far better presentation:
+
+- A clear, professional, attractive design system applied consistently across
+  every page (typography, spacing, color, components).
+- First-class UX: intuitive navigation, sensible defaults, smooth flows, easy to
+  use for non-technical managers.
+- Better, more readable charts: uniform legends, consistent color semantics,
+  data previews/tooltips, and labels that make every value self-explanatory.
+- Coherent, legible data and KPIs across all pages — no ambiguous or
+  hard-to-read figures.
+
+The goal of V3 is a polished, professional decision-support tool that reads
+clearly to industry stakeholders, not just a functional prototype.
 
 ## Future work
 
